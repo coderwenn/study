@@ -25,8 +25,8 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      # 升级 HTTPS 时取消下一行注释（并记得把 Caddyfile 的 :80 改成域名）
-      # - "443:443"
+      - "443:443"
+      - "443:443/udp"
     depends_on:
       - api
 
