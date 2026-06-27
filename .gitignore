@@ -28,3 +28,6 @@ build/
 
 # Superpowers brainstorming cache
 .superpowers/
+
+# claude code
+claude.md
