@@ -1,20 +1,22 @@
-# 后端 API 镜像：用 uv 安装依赖并运行 uvicorn
+# 后端 API 镜像：uv 导出锁定版本 + pip 安装 + 运行 uvicorn
 FROM python:3.13-slim
 
-# 国内 PyPI 镜像加速（pip 与 uv 都走它；海外部署可删这两行或换回 pypi.org）
-ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-    UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+# 国内 PyPI 镜像加速 pip（海外部署可删本行或换回 pypi.org）
+ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 装 uv：用 pip 从 PyPI 安装（避免从 ghcr.io 拉镜像）
+# uv 仅用于导出锁定的依赖清单（不参与安装）
 RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
 # 先拷依赖清单，利用 Docker 层缓存（改代码不重装依赖）
 COPY pyproject.toml uv.lock ./
-# 只装生产依赖（跳过 dev 组：pytest/httpx）
-# 显式指定镜像源下载（--frozen 会沿用 lockfile 的官方地址，需用 --index-url 覆盖）
-RUN uv sync --frozen --no-dev --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 导出锁定的生产依赖，用 pip 从镜像源安装到系统环境。
+# 说明：uv sync --frozen 会沿用 uv.lock 记录的官方下载地址，镜像源不生效；
+# 改用「uv 导出 + pip 安装」，pip 走 PIP_INDEX_URL 镜像源，速度快且稳定。
+RUN uv export --frozen --no-dev --no-emit-project --no-hashes -o requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 拷贝源码
 COPY app ./app
@@ -27,5 +29,6 @@ ENV DATABASE_URL=sqlite:////data/notes.db
 
 EXPOSE 8000
 
+# 依赖已装入系统环境，直接运行 uvicorn
 # --proxy-headers：信任前方 Caddy 转发的 X-Forwarded-* 头
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
