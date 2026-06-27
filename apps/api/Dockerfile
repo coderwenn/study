@@ -13,7 +13,8 @@ WORKDIR /app
 # 先拷依赖清单，利用 Docker 层缓存（改代码不重装依赖）
 COPY pyproject.toml uv.lock ./
 # 只装生产依赖（跳过 dev 组：pytest/httpx）
-RUN uv sync --frozen --no-dev
+# 显式指定镜像源下载（--frozen 会沿用 lockfile 的官方地址，需用 --index-url 覆盖）
+RUN uv sync --frozen --no-dev --index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 拷贝源码
 COPY app ./app
