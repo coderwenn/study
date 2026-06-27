@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from app.database import init_db
 from app.routers import auth as auth_router
 from app.routers import notes as notes_router
+from app.routers import tags as tags_router
 import app.models  # noqa: F401  注册所有模型
 
 
@@ -21,6 +22,9 @@ app.include_router(auth_router.router)
 
 # 挂载笔记路由（CRUD + 保护防删 + 用户隔离）
 app.include_router(notes_router.router)
+
+# 挂载标签路由（增删查 + 计数 + 用户隔离）
+app.include_router(tags_router.router)
 
 
 @app.get("/api/health")
