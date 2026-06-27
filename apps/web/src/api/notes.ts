@@ -16,7 +16,11 @@ export async function createNote(payload: Partial<Note> & { title: string }): Pr
   return data;
 }
 
-export async function updateNote(id: number, payload: Partial<Note>): Promise<Note> {
+// 更新负载允许携带 tag_ids（与后端 NoteUpdate schema 一致）
+export type NoteUpdatePayload = Partial<Omit<Note, "tags">> & { tag_ids?: number[] };
+
+export async function updateNote(id: number, payload: NoteUpdatePayload): Promise<Note> {
+  // axios 直接透传 payload，运行期 tag_ids 会被后端正确解析
   const { data } = await api.put<Note>(`/api/notes/${id}`, payload);
   return data;
 }

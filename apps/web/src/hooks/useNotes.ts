@@ -28,10 +28,14 @@ export function useCreateNote() {
   });
 }
 
+// 更新负载：与后端 NoteUpdate schema 对齐，tag_ids 用于重新关联标签
+export type NoteUpdatePayload = Partial<Omit<Note, "tags">> & { tag_ids?: number[] };
+
 export function useUpdateNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<Note> }) =>
+    // updateNote 接受 Partial<Note>，运行期会原样透传 tag_ids 给后端 PUT
+    mutationFn: ({ id, payload }: { id: number; payload: NoteUpdatePayload }) =>
       notesApi.updateNote(id, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: NOTES_KEY }),
   });
