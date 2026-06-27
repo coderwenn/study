@@ -8,9 +8,10 @@ interface Props {
   query: string;
   setQuery: (q: string) => void;
   tagId: number | null;
+  onDelete: (id: number, protected_: boolean) => void;
 }
 
-export default function NoteList({ selectedNoteId, onSelect, query, setQuery, tagId }: Props) {
+export default function NoteList({ selectedNoteId, onSelect, query, setQuery, tagId, onDelete }: Props) {
   const { data: notes = [], isLoading } = useNoteList({ q: query || undefined, tag: tagId ?? undefined });
 
   return (
@@ -31,6 +32,18 @@ export default function NoteList({ selectedNoteId, onSelect, query, setQuery, ta
             {new Date(n.updated_at).toLocaleDateString()} ·{" "}
             {n.tags.map((t) => `#${t.name}`).join(" ")}
           </div>
+          <button
+            className="btn-ghost"
+            disabled={n.is_protected}
+            title={n.is_protected ? "受保护，无法删除" : "删除"}
+            style={{ fontSize: 12, opacity: n.is_protected ? 0.4 : 1 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(n.id, n.is_protected);
+            }}
+          >
+            🗑
+          </button>
         </div>
       ))}
       {!isLoading && notes.length === 0 && (
