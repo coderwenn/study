@@ -1,8 +1,9 @@
 # 后端 API 镜像：用 uv 安装依赖并运行 uvicorn
 FROM python:3.13-slim
 
-# 从官方镜像装入 uv（比 pip 装 uv 更快更稳）
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# 装 uv：用 pip 从 PyPI 安装（避免从 ghcr.io 拉镜像，国内服务器更稳更快）
+# 如需进一步加速：加 -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
