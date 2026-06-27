@@ -1,8 +1,11 @@
 # 后端 API 镜像：用 uv 安装依赖并运行 uvicorn
 FROM python:3.13-slim
 
-# 装 uv：用 pip 从 PyPI 安装（避免从 ghcr.io 拉镜像，国内服务器更稳更快）
-# 如需进一步加速：加 -i https://pypi.tuna.tsinghua.edu.cn/simple
+# 国内 PyPI 镜像加速（pip 与 uv 都走它；海外部署可删这两行或换回 pypi.org）
+ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+    UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 装 uv：用 pip 从 PyPI 安装（避免从 ghcr.io 拉镜像）
 RUN pip install --no-cache-dir uv
 
 WORKDIR /app
