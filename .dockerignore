@@ -1,0 +1,12 @@
+# 根构建上下文（Caddy/前端镜像）排除项，加速构建、避免把大目录打进上下文
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+.git
+.superpowers
+.claude
+**/dist
+**/*.db
+**/.env
+docs

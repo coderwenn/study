@@ -1,0 +1,20 @@
+# 前端构建 + Caddy 反代/静态服务（多阶段）
+# build context 为仓库根目录（见 docker-compose.yml）
+
+# ---- 阶段 1：构建前端静态文件 ----
+FROM node:20-slim AS web
+WORKDIR /app
+# 用 pnpm 10（与仓库 lockfile 一致），绕过 corepack 的版本探测
+RUN npm install -g pnpm@10
+# 先拷 workspace 配置与 web 包清单，利用缓存
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/package.json
+RUN pnpm install --frozen-lockfile
+# 拷源码并构建（产物在 apps/web/dist）
+COPY apps/web ./apps/web
+RUN pnpm --filter web build
+
+# ---- 阶段 2：Caddy 提供静态文件 + /api 反代 ----
+FROM caddy:2-alpine
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=web /app/apps/web/dist /srv/web

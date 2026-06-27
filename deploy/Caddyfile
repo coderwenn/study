@@ -1,0 +1,18 @@
+# Caddy 反代配置
+# 当前：仅 HTTP（:80）。将来升级 HTTPS：把 ":80" 改成你的域名，
+# 例如 "notes.example.com"，并在 docker-compose.yml 放开 443 端口，
+# Caddy 会自动向 Let's Encrypt 申请并续期证书 —— 无需任何手动证书操作。
+
+:80 {
+	# /api 反代到后端服务（compose 里服务名 api）
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# 其余请求走前端静态文件；SPA 路由回退到 index.html
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+}
