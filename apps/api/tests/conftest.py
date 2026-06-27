@@ -18,6 +18,11 @@ def client():
     )
     TestingSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     Base.metadata.create_all(bind=engine)
+    # 建立搜索用的 FTS 表与触发器（与 init_db 保持一致）
+    from app.database import _FTS_SQL
+    with engine.begin() as conn:
+        for stmt in _FTS_SQL:
+            conn.exec_driver_sql(stmt)
 
     def override_get_db():
         db = TestingSession()
