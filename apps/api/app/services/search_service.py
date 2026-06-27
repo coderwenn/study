@@ -31,6 +31,7 @@ def search_notes(db: Session, user_id: int, query: str) -> list[Note]:
             FROM notes n
             WHERE n.user_id = :uid
               AND (n.title LIKE :like OR n.content LIKE :like)
+            ORDER BY n.updated_at DESC
             """
         )
         rows = db.execute(stmt, {"uid": user_id, "like": like}).all()

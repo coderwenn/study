@@ -13,6 +13,7 @@ export default function TagPicker({ selected, onChange }: Props) {
   const { data: tags = [] } = useTags();
   const createTag = useCreateTag();
   const [name, setName] = useState("");
+  const [error, setError] = useState("");
 
   // 切换某标签的选中状态
   function toggle(id: number) {
@@ -22,9 +23,14 @@ export default function TagPicker({ selected, onChange }: Props) {
   // 新建标签并立即选中
   async function add() {
     if (!name.trim()) return;
-    const t = await createTag.mutateAsync(name.trim());
-    setName("");
-    onChange([...selected, t.id]);
+    try {
+      const t = await createTag.mutateAsync(name.trim());
+      setName("");
+      setError("");
+      onChange([...selected, t.id]);
+    } catch {
+      setError("标签名已存在或创建失败");
+    }
   }
 
   return (
@@ -48,6 +54,7 @@ export default function TagPicker({ selected, onChange }: Props) {
         <button className="btn-ghost" onClick={add}>
           ＋
         </button>
+        {error && <span style={{ color: "red", fontSize: 12, marginLeft: 4 }}>{error}</span>}
       </span>
     </div>
   );
