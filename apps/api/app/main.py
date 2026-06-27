@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.database import init_db
 from app.routers import auth as auth_router
+from app.routers import notes as notes_router
 import app.models  # noqa: F401  注册所有模型
 
 
@@ -17,6 +18,9 @@ app = FastAPI(title="笔记网站 API", version="0.1.0", lifespan=lifespan)
 
 # 挂载鉴权路由（注册/登录/刷新/me）
 app.include_router(auth_router.router)
+
+# 挂载笔记路由（CRUD + 保护防删 + 用户隔离）
+app.include_router(notes_router.router)
 
 
 @app.get("/api/health")
