@@ -29,6 +29,12 @@ services:
       - "443:443/udp"
     depends_on:
       - api
+    # 持久化 Caddy 的证书与 ACME 状态，容器重建也不丢（防止证书再次丢失）
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
   notes-data:
+  caddy_data:
+  caddy_config:
