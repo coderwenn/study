@@ -16,6 +16,9 @@ build/
 .env.*
 !.env.example
 
+# TLS 证书（acme.sh 生成本地文件，不入库）
+deploy/certs/
+
 # Editor / OS
 .vscode/
 .idea/

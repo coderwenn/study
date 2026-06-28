@@ -17,6 +17,21 @@ services:
       # 数据库持久化卷（删/重建容器数据不丢）
       - notes-data:/data
 
+  open-webui:
+    image: ghcr.nju.edu.cn/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      OPENAI_API_BASE_URL: http://host.docker.internal:8642/v1
+      OPENAI_API_KEY: ${HERMES_API_KEY:?请在 .env 设置 HERMES_API_KEY}
+      ENABLE_SIGNUP: "true"
+      WEBUI_AUTH: "true"
+      DEFAULT_LOCALE: "zh-CN"
+    volumes:
+      - open-webui-data:/app/backend/data
+
   caddy:
     build:
       context: .
@@ -29,12 +44,15 @@ services:
       - "443:443/udp"
     depends_on:
       - api
+      - open-webui
     # 持久化 Caddy 的证书与 ACME 状态，容器重建也不丢（防止证书再次丢失）
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      - ./deploy/certs:/certs:ro
 
 volumes:
   notes-data:
+  open-webui-data:
   caddy_data:
   caddy_config:

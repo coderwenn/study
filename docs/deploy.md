@@ -1,12 +1,14 @@
 # 部署指南（Linux VPS + Docker）
 
-架构：**Caddy**（静态前端 + `/api` 反代）+ **uvicorn**（FastAPI 后端）+ **SQLite**（挂卷持久化）。
+架构：**Caddy**（静态前端 + `/api` 反代 + HTTPS）+ **uvicorn**（FastAPI 后端）+ **SQLite**（挂卷持久化）+ **Open WebUI**（AI 聊天界面）。
 
 ```
-        ┌─────────────┐
-  :80 → │   caddy     │  ──/api/*──→  api:8000 (uvicorn)
-        │ (前端静态)   │              └→ /data/notes.db (卷)
-        └─────────────┘
+                    ┌─────────────┐
+  :80/:443 →        │   caddy     │  ──/api/*──→  api:8000 (uvicorn)
+                    │ (前端静态)   │              └→ /data/notes.db (卷)
+                    └──────┬──────┘
+                           └──chat.coderwenn.cloud──→ open-webui:8080
+                                                          └→ Hermes API (宿主机:8642)
 ```
 
 ## 1. 服务器准备（一次性）
@@ -35,7 +37,11 @@ git clone <你的仓库地址> notes-app && cd notes-app
 # 生成并写入 JWT 密钥（务必改！）
 cp .env.example .env
 sed -i "s|change-me-to-a-random-32+-byte-string|$(openssl rand -hex 32)|" .env
-cat .env   # 确认 SECRET_KEY 已替换
+
+# 设置 Hermes API Key（用于 Open WebUI 连接 AI 后端）
+echo "HERMES_API_KEY=你的API密钥" >> .env
+
+cat .env   # 确认 SECRET_KEY 和 HERMES_API_KEY 已设置
 ```
 
 ## 3. 构建并启动
@@ -66,27 +72,33 @@ curl -I http://localhost/               # 前端首页 200
 
 > 现在是 HTTP。下面一步可一键升级 HTTPS。
 
-## 6. 升级到 HTTPS（Caddy 自动证书）
+## 6. HTTPS 证书（acme.sh DNS-01）
 
-Caddy 的优势：把 `:80` 改成域名，它自动向 Let's Encrypt 申请并续期证书。
+国内服务器域名需 ICP 备案，且 HTTP-01 / TLS-ALPN-01 验证会被运营商拦截。
+使用 **DNS-01** 方式通过 DNSPod API 自动验证，绕过拦截。
 
-1. 编辑 `deploy/Caddyfile`，把第一行 `:80 {` 改成：
-   ```
-   notes.example.com {
-   ```
-2. 编辑 `docker-compose.yml`，放开 caddy 的 443 端口：
-   ```yaml
-   ports:
-     - "80:80"
-     - "443:443"
-   ```
-3. 重建 caddy：
-   ```bash
-   docker compose up -d --build caddy
-   ```
-片刻后 `https://notes.example.com` 即生效（Caddy 自动把 80 跳转到 443）。
+```bash
+# 1. 安装 acme.sh
+curl https://get.acme.sh | sh
 
-> 前提：域名已正确解析到本机，且 80/443 端口可被公网访问（Let's Encrypt 会回连校验）。
+# 2. 设置 DNSPod API Token（在 DNSPod 控制台创建）
+export DP_Id=你的ID
+export DP_Key=你的Token
+
+# 3. 申请通配符证书（EC-256）
+~/.acme.sh/acme.sh --issue --dns dns_dp \
+  -d coderwenn.cloud -d '*.coderwenn.cloud' --keylength ec-256
+
+# 4. 安装证书到 deploy/certs/ 并设置自动续期
+mkdir -p deploy/certs
+~/.acme.sh/acme.sh --install-cert -d coderwenn.cloud --ecc \
+  --key-file deploy/certs/coderwenn.cloud.key \
+  --fullchain-file deploy/certs/coderwenn.cloud.crt \
+  --reloadcmd "docker compose restart caddy"
+```
+
+> 证书有效期为 90 天，acme.sh 会通过 cron 自动续期。
+> `deploy/certs/` 已在 `.gitignore`，证书文件不会提交到仓库。
 
 ## 7. 数据备份（SQLite）
 
