@@ -1,6 +1,5 @@
 // 主界面：三栏布局，状态提升到此层
 import { useState } from "react";
-import "../styles.css";
 import Sidebar from "../components/Sidebar";
 import NoteList from "../components/NoteList";
 import NoteEditor from "../components/NoteEditor";
@@ -30,7 +29,7 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="layout">
+    <div className="flex h-screen w-full overflow-hidden">
       <Sidebar selectedTagId={tagId} onSelectTag={setTagId} onCreate={handleCreate} />
       <NoteList
         selectedNoteId={selectedId}

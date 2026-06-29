@@ -1,7 +1,9 @@
-// 左栏：新建按钮、标签列表（点击筛选）、退出
+// 左栏：品牌区 / 新建笔记 / 标签筛选（点击切换）/ 收藏·废纸篓（占位）/ 账户退出
+// 收藏、废纸篓、设置、帮助 暂无后端逻辑，仅作视觉占位，遵循现有逻辑不接入假功能。
+import { Plus, FileText, Tag, Star, Trash2, Settings, Info, LogOut } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTags } from "../hooks/useTags";
-import type { Tag } from "../types";
+import type { Tag as TagType } from "../types";
 
 interface Props {
   selectedTagId: number | null;
@@ -9,31 +11,112 @@ interface Props {
   onCreate: () => void;
 }
 
+// 导航项的公共类名（激活/非激活在调用处拼接）
+const itemBase =
+  "flex items-center gap-3 px-6 py-2.5 text-sm cursor-pointer border-r-[3px] border-transparent transition-colors";
+
 export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props) {
   const { user, logout } = useAuth();
   const { data: tags = [] } = useTags();
 
+  // 用户名首字母作头像（无用户名时回退到 "U"）
+  const initial = (user?.username?.[0] ?? "U").toUpperCase();
+
   return (
-    <div className="sidebar">
-      <button className="btn" style={{ width: "100%" }} onClick={onCreate}>＋ 新建笔记</button>
-      <div style={{ margin: "16px 0 4px", color: "#6b7280", fontSize: 12 }}>标签</div>
-      <div className="tag-chip" style={{ display: "block", textAlign: "center" }}
-           onClick={() => onSelectTag(null)}>
-        全部
+    <aside className="w-[200px] shrink-0 h-full bg-surface-container-low border-r border-outline-variant flex flex-col py-6">
+      {/* 品牌 */}
+      <div className="px-6 mb-8">
+        <h1 className="text-xl font-bold tracking-tight text-primary m-0">Notes Pro</h1>
+        <p className="text-xs text-on-surface-variant">Personal Workspace</p>
       </div>
-      {tags.map((t: Tag) => (
-        <div
-          key={t.id}
-          className={`tag-chip ${selectedTagId === t.id ? "active" : ""}`}
-          style={{ display: "block" }}
-          onClick={() => onSelectTag(selectedTagId === t.id ? null : t.id)}
+
+      {/* 新建笔记 */}
+      <div className="px-4 mb-6">
+        <button
+          onClick={onCreate}
+          className="w-full bg-primary hover:bg-primary-dark text-white font-medium px-4 rounded-md flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-sm py-1.5 text-sm"
         >
-          # {t.name} ({t.note_count})
-        </div>
-      ))}
-      <div style={{ position: "absolute", bottom: 12, fontSize: 12, color: "#6b7280" }}>
-        👤 {user?.username} · <button className="btn-ghost" onClick={logout}>退出</button>
+          <Plus className="w-[18px] h-[18px]" />
+          <span>新建笔记</span>
+        </button>
       </div>
-    </div>
+
+      {/* 导航：标签分组 */}
+      <nav className="flex-1 space-y-1">
+        <div className="px-6 mb-2 text-[11px] font-semibold text-outline uppercase tracking-wider">
+          标签
+        </div>
+
+        {/* 全部笔记：tagId === null 时激活 */}
+        <div
+          onClick={() => onSelectTag(null)}
+          className={`${itemBase} ${
+            selectedTagId === null
+              ? "bg-white/50 text-primary border-primary font-medium"
+              : "text-on-surface-variant hover:bg-surface-container-highest"
+          }`}
+        >
+          <FileText className="w-5 h-5" />
+          <span>全部</span>
+        </div>
+
+        {/* 各标签：再次点击同一个标签取消筛选 */}
+        {tags.map((t: TagType) => (
+          <div
+            key={t.id}
+            onClick={() => onSelectTag(selectedTagId === t.id ? null : t.id)}
+            className={`${itemBase} ${
+              selectedTagId === t.id
+                ? "bg-white/50 text-primary border-primary font-medium"
+                : "text-on-surface-variant hover:bg-surface-container-highest"
+            }`}
+          >
+            <Tag className="w-5 h-5" />
+            <span className="truncate">{t.name}</span>
+            <span className="ml-auto text-xs text-outline">{t.note_count}</span>
+          </div>
+        ))}
+
+        {/* 视觉占位分组：收藏 / 废纸篓（暂无对应数据逻辑） */}
+        <div className="pt-4 space-y-1">
+          <div className={`${itemBase} text-on-surface-variant hover:bg-surface-container-highest`} title="敬请期待">
+            <Star className="w-5 h-5" />
+            <span>收藏</span>
+          </div>
+          <div className={`${itemBase} text-on-surface-variant hover:bg-surface-container-highest`} title="敬请期待">
+            <Trash2 className="w-5 h-5" />
+            <span>废纸篓</span>
+          </div>
+        </div>
+      </nav>
+
+      {/* 底部：设置 / 帮助 + 账户退出 */}
+      <div className="mt-auto border-t border-outline-variant pt-4 space-y-1">
+        <div className={`${itemBase} text-on-surface-variant hover:bg-surface-container-highest`} title="敬请期待">
+          <Settings className="w-5 h-5" />
+          <span>设置</span>
+        </div>
+        <div className={`${itemBase} text-on-surface-variant hover:bg-surface-container-highest`} title="敬请期待">
+          <Info className="w-5 h-5" />
+          <span>帮助</span>
+        </div>
+
+        {/* 账户区：头像 + 用户名 + 退出 */}
+        <div className="flex items-center gap-2.5 px-4 pt-3">
+          <div className="w-[30px] h-[30px] rounded-full bg-primary text-white flex items-center justify-center text-[13px] font-semibold shrink-0">
+            {initial}
+          </div>
+          <span className="text-[13px] font-medium text-on-surface truncate">{user?.username ?? "用户"}</span>
+          <button
+            onClick={logout}
+            title="退出登录"
+            aria-label="退出登录"
+            className="ml-auto p-1.5 rounded-md text-on-surface-variant hover:bg-surface-container-highest hover:text-red-500 transition-colors"
+          >
+            <LogOut className="w-[18px] h-[18px]" />
+          </button>
+        </div>
+      </div>
+    </aside>
   );
 }

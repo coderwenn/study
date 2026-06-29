@@ -1,11 +1,77 @@
-/* 全局基础样式：清除默认外边距，使用系统字体 */
-:root {
-  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.5;
-  color-scheme: light dark;
+/*
+ * Tailwind 入口 + 全局基础样式。
+ * 主题色板定义在 tailwind.config.js；这里仅放 @tailwind 指令、
+ * 全局重置、滚动条美化，以及一个用纯 CSS 绘制的「保护开关」组件。
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-surface text-on-surface overflow-hidden font-sans antialiased;
+  }
+
+  /* 美化滚动条 */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
+@layer components {
+  /* 保护开关（toggle）：隐藏原生 checkbox，用 track/thumb 绘制开关 */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  .switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .switch-track {
+    position: absolute;
+    inset: 0;
+    background: #c4c6d0;
+    border-radius: 999px;
+    transition: background 0.2s ease;
+  }
+  .switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  }
+  .switch input:checked + .switch-track {
+    background: #2563eb;
+  }
+  .switch input:checked + .switch-track .switch-thumb {
+    transform: translateX(16px);
+  }
 }
