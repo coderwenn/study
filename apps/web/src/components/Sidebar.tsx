@@ -1,8 +1,10 @@
 // 左栏：品牌区 / 新建笔记 / 标签筛选（点击切换）/ 收藏·废纸篓（占位）/ 账户退出
 // 收藏、废纸篓、设置、帮助 暂无后端逻辑，仅作视觉占位，遵循现有逻辑不接入假功能。
+import { useState } from "react";
 import { Plus, FileText, Tag, Star, Trash2, Settings, Info, LogOut } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTags } from "../hooks/useTags";
+import ConfirmDialog from "./ConfirmDialog";
 import type { Tag as TagType } from "../types";
 
 interface Props {
@@ -18,6 +20,8 @@ const itemBase =
 export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props) {
   const { user, logout } = useAuth();
   const { data: tags = [] } = useTags();
+  // 退出确认弹窗的开关
+  const [showLogout, setShowLogout] = useState(false);
 
   // 用户名首字母作头像（无用户名时回退到 "U"）
   const initial = (user?.username?.[0] ?? "U").toUpperCase();
@@ -108,7 +112,7 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props)
           </div>
           <span className="text-[13px] font-medium text-on-surface truncate">{user?.username ?? "用户"}</span>
           <button
-            onClick={logout}
+            onClick={() => setShowLogout(true)}
             title="退出登录"
             aria-label="退出登录"
             className="ml-auto p-1.5 rounded-md text-on-surface-variant hover:bg-surface-container-highest hover:text-red-500 transition-colors"
@@ -117,6 +121,21 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props)
           </button>
         </div>
       </div>
+
+      {/* 退出确认弹窗：确认后才真正登出，避免误触 */}
+      <ConfirmDialog
+        open={showLogout}
+        title="确认退出登录?"
+        message="你将返回登录页面，需要重新输入账号密码。"
+        confirmText="退出"
+        cancelText="取消"
+        danger
+        onConfirm={() => {
+          setShowLogout(false);
+          logout();
+        }}
+        onCancel={() => setShowLogout(false)}
+      />
     </aside>
   );
 }
