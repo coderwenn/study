@@ -16,6 +16,8 @@ import {
   codeBlock,
   insertTable,
   horizontalRule,
+  indent,
+  outdent,
 } from "../editor/markdownCommands";
 
 describe("applyEdit", () => {
@@ -144,5 +146,26 @@ describe("块命令", () => {
     const s = { value: "x", selectionStart: 1, selectionEnd: 1 };
     const r = applyEdit(s, horizontalRule(s));
     expect(r.value).toContain("\n---\n");
+  });
+});
+
+describe("indent / outdent", () => {
+  const st = (value: string, a: number, b: number) => ({ value, selectionStart: a, selectionEnd: b });
+
+  it("indent 普通单行选区 → 整行 +2 空格", () => {
+    const s = st("abc", 0, 3);
+    expect(applyEdit(s, indent(s)).value).toBe("  abc");
+  });
+  it("indent 多行 → 每行 +2", () => {
+    const s = st("a\nb", 0, 3);
+    expect(applyEdit(s, indent(s)).value).toBe("  a\n  b");
+  });
+  it("outdent 已缩进行 → 去 2 空格（上限 2）", () => {
+    const s = st("    a", 0, 0);
+    expect(applyEdit(s, outdent(s)).value).toBe("  a");
+  });
+  it("outdent 列表项 → 升级（去 2 空格）", () => {
+    const s = st("  - 子", 0, 0);
+    expect(applyEdit(s, outdent(s)).value).toBe("- 子");
   });
 });

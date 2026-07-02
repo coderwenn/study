@@ -182,3 +182,42 @@ export const horizontalRule: Command = (s: EditorState): Edit => {
     selectEnd: s.selectionStart + inserted.length,
   };
 };
+
+// 缩进：对选区覆盖的每一行行首加 2 空格（列表项即降级为子列表）
+export const indent: Command = (s: EditorState): Edit => {
+  const { start, end } = lineRange(s);
+  const block = s.value.slice(start, end);
+  const nextBlock = block.split("\n").map((l) => "  " + l).join("\n");
+  // 选区随每行前缀同步前移 2；多行时整体选中结果块
+  const shift = 2;
+  return {
+    deleteStart: start,
+    deleteEnd: end,
+    insert: nextBlock,
+    selectStart: s.selectionStart + shift,
+    selectEnd: s.selectionEnd + (s.value.slice(start, s.selectionEnd).split("\n").length * shift),
+  };
+};
+
+// 反缩进：对选区覆盖的每一行去除最多 2 个前导空格（列表项即升级）
+export const outdent: Command = (s: EditorState): Edit => {
+  const { start, end } = lineRange(s);
+  const block = s.value.slice(start, end);
+  const lines = block.split("\n");
+  let removed = 0;
+  let firstRemoved = 0;
+  const nextLines = lines.map((l, i) => {
+    const n = l.startsWith("  ") ? 2 : l.startsWith(" ") ? 1 : 0;
+    if (i === 0) firstRemoved = n;
+    removed += n;
+    return l.slice(n);
+  });
+  const nextBlock = nextLines.join("\n");
+  return {
+    deleteStart: start,
+    deleteEnd: end,
+    insert: nextBlock,
+    selectStart: Math.max(s.selectionStart - firstRemoved, start),
+    selectEnd: Math.max(s.selectionEnd - removed, start),
+  };
+};
