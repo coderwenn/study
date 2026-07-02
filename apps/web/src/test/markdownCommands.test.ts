@@ -13,6 +13,9 @@ import {
   unorderedList,
   orderedList,
   taskList,
+  codeBlock,
+  insertTable,
+  horizontalRule,
 } from "../editor/markdownCommands";
 
 describe("applyEdit", () => {
@@ -124,5 +127,22 @@ describe("行首前缀命令", () => {
     expect(applyEdit(s1, taskList(s1)).value).toBe("- [x] 项");
     const s2 = st("- [x] 项", 0, 0);
     expect(applyEdit(s2, taskList(s2)).value).toBe("项");
+  });
+});
+
+describe("块命令", () => {
+  it("codeBlock 选中 → 用围栏包裹", () => {
+    const s = { value: "code", selectionStart: 0, selectionEnd: 4 };
+    expect(applyEdit(s, codeBlock(s)).value).toBe("```\ncode\n```");
+  });
+  it("insertTable → 插入 2x2 模板", () => {
+    const s = { value: "", selectionStart: 0, selectionEnd: 0 };
+    const r = applyEdit(s, insertTable(s));
+    expect(r.value).toBe("| 列1 | 列2 |\n| --- | --- |\n|  |  |");
+  });
+  it("horizontalRule → 插入 --- 与前后空行", () => {
+    const s = { value: "x", selectionStart: 1, selectionEnd: 1 };
+    const r = applyEdit(s, horizontalRule(s));
+    expect(r.value).toContain("\n---\n");
   });
 });

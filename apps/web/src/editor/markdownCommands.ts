@@ -144,3 +144,41 @@ export const taskList: Command = (s: EditorState): Edit => {
     selectEnd: start + nextBlock.length,
   };
 };
+
+// 代码块：选区外包 ``` 围栏
+export const codeBlock: Command = (s: EditorState): Edit => {
+  const sel = s.value.slice(s.selectionStart, s.selectionEnd);
+  const inner = sel.length > 0 ? sel : "";
+  const inserted = "```\n" + inner + "\n```";
+  return {
+    deleteStart: s.selectionStart,
+    deleteEnd: s.selectionEnd,
+    insert: inserted,
+    selectStart: s.selectionStart,
+    selectEnd: s.selectionStart + inserted.length,
+  };
+};
+
+// 表格模板（2 列 2 行，含分隔行）
+export const insertTable: Command = (s: EditorState): Edit => {
+  const inserted = "| 列1 | 列2 |\n| --- | --- |\n|  |  |";
+  return {
+    deleteStart: s.selectionStart,
+    deleteEnd: s.selectionEnd,
+    insert: inserted,
+    selectStart: s.selectionStart,
+    selectEnd: s.selectionStart + inserted.length,
+  };
+};
+
+// 分割线：前后补空行，避免与上下文粘连
+export const horizontalRule: Command = (s: EditorState): Edit => {
+  const inserted = "\n---\n";
+  return {
+    deleteStart: s.selectionStart,
+    deleteEnd: s.selectionEnd,
+    insert: inserted,
+    selectStart: s.selectionStart + inserted.length,
+    selectEnd: s.selectionStart + inserted.length,
+  };
+};
