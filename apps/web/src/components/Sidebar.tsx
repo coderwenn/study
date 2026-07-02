@@ -20,6 +20,8 @@ const itemBase =
 export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props) {
   const { user, logout } = useAuth();
   const { data: tags = [] } = useTags();
+  // 仅展示有笔记引用的标签（note_count > 0），空标签不占「标签位」
+  const visibleTags = tags.filter((t) => t.note_count > 0);
   // 退出确认弹窗的开关
   const [showLogout, setShowLogout] = useState(false);
 
@@ -65,7 +67,7 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props)
         </div>
 
         {/* 各标签：再次点击同一个标签取消筛选 */}
-        {tags.map((t: TagType) => (
+        {visibleTags.map((t: TagType) => (
           <div
             key={t.id}
             onClick={() => onSelectTag(selectedTagId === t.id ? null : t.id)}
