@@ -1,6 +1,6 @@
 // 左栏：品牌区 / 新建笔记 / 标签筛选（点击切换）/ 收藏·废纸篓（占位）/ 账户退出
 // 收藏、废纸篓、设置、帮助 暂无后端逻辑，仅作视觉占位，遵循现有逻辑不接入假功能。
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, FileText, Tag, Star, Trash2, Settings, Info, LogOut } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTags } from "../hooks/useTags";
@@ -22,6 +22,12 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props)
   const { data: tags = [] } = useTags();
   // 仅展示有笔记引用的标签（note_count > 0），空标签不占「标签位」
   const visibleTags = tags.filter((t) => t.note_count > 0);
+  // 选中的标签变空（被过滤）或被删除时，自动回到「全部」，避免「无高亮 + 空列表」悬空态
+  useEffect(() => {
+    if (selectedTagId !== null && !visibleTags.some((t) => t.id === selectedTagId)) {
+      onSelectTag(null);
+    }
+  }, [visibleTags, selectedTagId, onSelectTag]);
   // 退出确认弹窗的开关
   const [showLogout, setShowLogout] = useState(false);
 
