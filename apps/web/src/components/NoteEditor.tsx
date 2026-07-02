@@ -78,6 +78,22 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
     setProtected(e.target.checked);
   }
 
+  // 立即保存：跳过 1.5s 防抖，强制 flush 当前内容（⌘S / Ctrl+S 触发）
+  const saveNow = () => {
+    if (!note) return;
+    // 取消尚未触发的防抖定时器，避免保存后再次重复提交
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    if (!dirty.current) return; // 无改动则不重复请求
+    updateNote.mutate({
+      id: note.id,
+      payload: { title, content, tag_ids: tagIds, is_protected: protected_ },
+    });
+    dirty.current = false; // 已强制提交，重置脏标记
+  };
+
   // 前端导出：标题作 H1 + 正文，触发浏览器下载 .md 文件
   function exportMd() {
     const md = `# ${title}\n\n${content}`;
@@ -134,7 +150,7 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
       {/* 主体：标签区 + Markdown 分栏 */}
       <div className="flex-1 min-h-0 flex flex-col">
         <TagPicker selected={tagIds} onChange={onTags} />
-        <MarkdownSplit value={content} onChange={onContent} />
+        <MarkdownSplit value={content} onChange={onContent} onSave={saveNow} />
       </div>
     </main>
   );
