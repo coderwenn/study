@@ -22,6 +22,16 @@ import {
   keymap,
   commandOrder,
 } from "../editor/markdownCommands";
+import { runEdit } from "../editor/runEdit";
+
+function makeTextarea(value: string, selStart: number, selEnd: number) {
+  const ta = document.createElement("textarea");
+  ta.value = value;
+  ta.selectionStart = selStart;
+  ta.selectionEnd = selEnd;
+  document.body.appendChild(ta);
+  return ta;
+}
 
 describe("applyEdit", () => {
   it("用 insert 替换 [start,end) 并更新选区", () => {
@@ -202,5 +212,20 @@ describe("注册表", () => {
   it("commandOrder 给出工具栏分组顺序", () => {
     expect(commandOrder[0]).toBe("bold");
     expect(commandOrder).toContain("horizontalRule");
+  });
+});
+
+describe("runEdit", () => {
+  it("fallback：execCommand 不可用时，调 onChange 更新值并要求还原选区", () => {
+    const ta = makeTextarea("x", 0, 1);
+    let changed: string | undefined;
+    let restored: { start: number; end: number } | undefined;
+    runEdit(
+      ta,
+      { deleteStart: 0, deleteEnd: 1, insert: "y", selectStart: 1, selectEnd: 1 },
+      { onChange: (v) => (changed = v), restoreSelection: (start, end) => (restored = { start, end }) }
+    );
+    expect(changed).toBe("y");
+    expect(restored).toEqual({ start: 1, end: 1 });
   });
 });
