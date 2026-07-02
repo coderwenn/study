@@ -6,6 +6,7 @@ import {
   strikethrough,
   inlineCode,
   link,
+  image,
   h1,
   h2,
   h3,
@@ -188,7 +189,7 @@ describe("注册表", () => {
     const ids = Object.keys(commands);
     expect(ids).toEqual(
       expect.arrayContaining([
-        "bold", "italic", "strikethrough", "inlineCode", "link",
+        "bold", "italic", "strikethrough", "inlineCode", "link", "image",
         "h1", "h2", "h3", "quote", "unorderedList", "orderedList", "taskList",
         "codeBlock", "insertTable", "horizontalRule", "indent", "outdent",
       ])
@@ -227,5 +228,20 @@ describe("runEdit", () => {
     );
     expect(changed).toBe("y");
     expect(restored).toEqual({ start: 1, end: 1 });
+  });
+});
+
+describe("image", () => {
+  it("选中文本 → ![文本](url)，选区落在 url", () => {
+    const s = { value: "图", selectionStart: 0, selectionEnd: 1 };
+    const r = applyEdit(s, image(s));
+    expect(r.value).toBe("![图](url)");
+    expect(r.value.slice(r.selectionStart, r.selectionEnd)).toBe("url");
+  });
+  it("无选区 → ![描述](url)，选区落在「描述」", () => {
+    const s = { value: "", selectionStart: 0, selectionEnd: 0 };
+    const r = applyEdit(s, image(s));
+    expect(r.value).toBe("![描述](url)");
+    expect(r.value.slice(r.selectionStart, r.selectionEnd)).toBe("描述");
   });
 });

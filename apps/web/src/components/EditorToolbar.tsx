@@ -1,7 +1,7 @@
 import { commandOrder, keymap } from "../editor/markdownCommands";
 import {
   Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3,
-  List, ListOrdered, ListChecks, Quote, Code2, Minus, Link, Table,
+  List, ListOrdered, ListChecks, Quote, Code2, Minus, Link, Image, Table,
 } from "lucide-react";
 
 // 命令 id → 图标 + 中文标题（含快捷键提示）
@@ -20,6 +20,7 @@ const meta: Record<string, { icon: React.ReactNode; label: string }> = {
   codeBlock: { icon: <Code2 className="w-[18px] h-[18px]" />, label: "代码块" },
   horizontalRule: { icon: <Minus className="w-[18px] h-[18px]" />, label: "分割线" },
   link: { icon: <Link className="w-[18px] h-[18px]" />, label: "链接" },
+  image: { icon: <Image className="w-[18px] h-[18px]" />, label: "图片" },
   insertTable: { icon: <Table className="w-[18px] h-[18px]" />, label: "表格" },
 };
 

@@ -36,7 +36,11 @@ export function runEdit(ta: HTMLTextAreaElement, edit: Edit, cb: RunEditCallback
     }
   }
 
-  if (!usedNative) {
+  if (usedNative) {
+    // 原生通道已改 DOM；同步受控 state（与原生 input 事件可能重复触发 onChange，但 setContent 幂等；
+    // 这样即使原生 input 事件未抵达 React，状态也不会漂移、下一次渲染不会回退 DOM 改动）
+    cb.onChange(next.value);
+  } else {
     // 回滚原生通道可能造成的部分改动，再走 onChange fallback
     if (ta.value !== prev.value) {
       ta.value = prev.value;

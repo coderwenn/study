@@ -60,6 +60,30 @@ export const link: Command = (s: EditorState): Edit => {
   };
 };
 
+// 图片：![alt](url)，选区落在 url（有选区）或「描述」（无选区）
+export const image: Command = (s: EditorState): Edit => {
+  const sel = s.value.slice(s.selectionStart, s.selectionEnd);
+  const alt = sel.length > 0 ? sel : "描述";
+  const inserted = `![${alt}](url)`;
+  const urlStart = s.selectionStart + 2 + alt.length + 2; // 跳过 '![' + alt + ']('
+  if (sel.length > 0) {
+    return {
+      deleteStart: s.selectionStart,
+      deleteEnd: s.selectionEnd,
+      insert: inserted,
+      selectStart: urlStart,
+      selectEnd: urlStart + "url".length,
+    };
+  }
+  return {
+    deleteStart: s.selectionStart,
+    deleteEnd: s.selectionEnd,
+    insert: inserted,
+    selectStart: s.selectionStart + 2,
+    selectEnd: s.selectionStart + 2 + alt.length,
+  };
+};
+
 // 选区覆盖到的行范围 [startLineStart, lastLineEnd)
 function lineRange(s: EditorState): { start: number; end: number } {
   const start = s.value.lastIndexOf("\n", s.selectionStart - 1) + 1; // 当选区在行首时 lastIndexOf 返回 -1 → 0
@@ -224,7 +248,7 @@ export const outdent: Command = (s: EditorState): Edit => {
 
 // 命令注册表：id → 命令函数
 export const commands: Record<string, Command> = {
-  bold, italic, strikethrough, inlineCode, link,
+  bold, italic, strikethrough, inlineCode, link, image,
   h1, h2, h3, quote, unorderedList, orderedList, taskList,
   codeBlock, insertTable, horizontalRule, indent, outdent,
 };
@@ -235,7 +259,7 @@ export const commandOrder: (string | null)[] = [
   "h1", "h2", "h3", null,
   "unorderedList", "orderedList", "taskList", null,
   "quote", "codeBlock", "horizontalRule", null,
-  "link", "insertTable",
+  "link", "image", "insertTable",
 ];
 
 // 快捷键签名 → 命令 id（签名基于 e.code：mod+/alt+/shift+ 前缀 + e.code）
