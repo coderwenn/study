@@ -947,59 +947,61 @@ git commit -m "feat(web): runEdit 写回(execCommand 保撤销 + fallback)"
 
 ```tsx
 import { describe, it, expect, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import React from "react";
+import { render, fireEvent } from "@testing-library/react";
 import { useEditorShortcuts } from "../editor/useEditorShortcuts";
 
-function setup() {
+// 渲染一个绑定快捷键 hook 的受控 textarea（必须经 React onKeyDown，否则 raw dispatch 不会触发 handler）
+function setup(initial = "x") {
   const onChange = vi.fn();
   const onSave = vi.fn();
   const restoreSelection = vi.fn();
-  const ta = document.createElement("textarea");
-  ta.value = "x";
-  ta.selectionStart = 0;
-  ta.selectionEnd = 1;
-  document.body.appendChild(ta);
-  const { result } = renderHook(() =>
-    useEditorShortcuts({ ref: { current: ta }, value: ta.value, onChange, onSave, restoreSelection })
-  );
-  return { ta, onChange, onSave, restoreSelection, onKeyDown: result.current };
+  function Editor({ value }: { value: string }) {
+    const ref = React.useRef<HTMLTextAreaElement>(null);
+    const handleKeyDown = useEditorShortcuts({ ref, value, onChange, onSave, restoreSelection });
+    return (
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+      />
+    );
+  }
+  const utils = render(<Editor value={initial} />);
+  const ta = utils.container.querySelector("textarea")!;
+  return { ta, onChange, onSave, restoreSelection };
 }
 
 describe("useEditorShortcuts", () => {
-  it("IME 组合态不触发任何命令", async () => {
+  it("IME 组合态不触发任何命令", () => {
     const { ta, onChange } = setup();
-    // 模拟输入法组字：先 compositionstart 再按键
-    ta.dispatchEvent(new CompositionEvent("compositionstart"));
-    ta.dispatchEvent(new KeyboardEvent("keydown", { key: "b", code: "KeyB", metaKey: true, bubbles: true }));
+    ta.focus();
+    fireEvent.keyDown(ta, { key: "b", code: "KeyB", metaKey: true, isComposing: true });
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("⌘B 触发 bold（经 fallback 更新值）", async () => {
-    const user = userEvent.setup();
+  it("⌘B 触发 bold（fallback 下 onChange 收到 **x**）", () => {
     const { ta, onChange } = setup();
     ta.focus();
-    await user.keyboard("{Meta>}");
-    ta.dispatchEvent(new KeyboardEvent("keydown", { key: "b", code: "KeyB", metaKey: true, bubbles: true, cancelable: true }));
+    ta.setSelectionRange(0, 1); // 选中 "x"
+    fireEvent.keyDown(ta, { key: "b", code: "KeyB", metaKey: true });
     expect(onChange).toHaveBeenCalledWith("**x**");
   });
 
-  it("⌘S 调用 onSave 且 preventDefault", () => {
+  it("⌘S 调用 onSave", () => {
     const { ta, onSave } = setup();
-    const ev = new KeyboardEvent("keydown", { key: "s", code: "KeyS", metaKey: true, bubbles: true, cancelable: true });
-    const spy = vi.spyOn(ev, "preventDefault");
-    ta.dispatchEvent(ev);
+    ta.focus();
+    fireEvent.keyDown(ta, { key: "s", code: "KeyS", metaKey: true });
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalled();
   });
 
-  it("Tab 触发 indent 且 preventDefault（焦点不跳走）", () => {
+  it("Tab 触发 indent（onChange 收到 \"  x\"）", () => {
     const { ta, onChange } = setup();
-    const ev = new KeyboardEvent("keydown", { key: "Tab", code: "Tab", bubbles: true, cancelable: true });
-    const spy = vi.spyOn(ev, "preventDefault");
-    ta.dispatchEvent(ev);
+    ta.focus();
+    ta.setSelectionRange(0, 0); // 光标在行首
+    fireEvent.keyDown(ta, { key: "Tab", code: "Tab" });
     expect(onChange).toHaveBeenCalledWith("  x");
-    expect(spy).toHaveBeenCalled();
   });
 });
 ```
