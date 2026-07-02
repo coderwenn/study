@@ -1,6 +1,7 @@
 // 笔记的服务端状态：列表、详情、增删改，自动失效相关缓存
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as notesApi from "../api/notes";
+import { TAGS_KEY } from "./useTags";
 import type { Note } from "../types";
 
 export const NOTES_KEY = ["notes"] as const;
@@ -24,7 +25,11 @@ export function useCreateNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: Partial<Note> & { title: string }) => notesApi.createNote(payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: NOTES_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: NOTES_KEY });
+      // 笔记的标签关联会改变各标签 note_count，需同步失效标签缓存
+      qc.invalidateQueries({ queryKey: TAGS_KEY });
+    },
   });
 }
 
@@ -37,7 +42,11 @@ export function useUpdateNote() {
     // updateNote 接受 Partial<Note>，运行期会原样透传 tag_ids 给后端 PUT
     mutationFn: ({ id, payload }: { id: number; payload: NoteUpdatePayload }) =>
       notesApi.updateNote(id, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: NOTES_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: NOTES_KEY });
+      // 笔记的标签关联会改变各标签 note_count，需同步失效标签缓存
+      qc.invalidateQueries({ queryKey: TAGS_KEY });
+    },
   });
 }
 
@@ -45,6 +54,10 @@ export function useDeleteNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => notesApi.deleteNote(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: NOTES_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: NOTES_KEY });
+      // 笔记的标签关联会改变各标签 note_count，需同步失效标签缓存
+      qc.invalidateQueries({ queryKey: TAGS_KEY });
+    },
   });
 }
