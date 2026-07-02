@@ -221,3 +221,36 @@ export const outdent: Command = (s: EditorState): Edit => {
     selectEnd: Math.max(s.selectionEnd - removed, start),
   };
 };
+
+// 命令注册表：id → 命令函数
+export const commands: Record<string, Command> = {
+  bold, italic, strikethrough, inlineCode, link,
+  h1, h2, h3, quote, unorderedList, orderedList, taskList,
+  codeBlock, insertTable, horizontalRule, indent, outdent,
+};
+
+// 工具栏分组顺序（UI 用；组间用 null 作分隔）
+export const commandOrder: (string | null)[] = [
+  "bold", "italic", "strikethrough", "inlineCode", null,
+  "h1", "h2", "h3", null,
+  "unorderedList", "orderedList", "taskList", null,
+  "quote", "codeBlock", "horizontalRule", null,
+  "link", "insertTable",
+];
+
+// 快捷键签名 → 命令 id（签名基于 e.code：mod+/alt+/shift+ 前缀 + e.code）
+export const keymap: Record<string, string> = {
+  "mod+KeyB": "bold",
+  "mod+KeyI": "italic",
+  "mod+shift+KeyX": "strikethrough",
+  "mod+KeyE": "inlineCode",
+  "mod+KeyK": "link",
+  "mod+alt+Digit1": "h1",
+  "mod+alt+Digit2": "h2",
+  "mod+alt+Digit3": "h3",
+  "mod+alt+KeyQ": "quote",
+  "mod+alt+KeyC": "codeBlock",
+  "mod+shift+Digit8": "unorderedList",
+  "mod+shift+Digit7": "orderedList",
+  "mod+alt+KeyT": "taskList",
+};

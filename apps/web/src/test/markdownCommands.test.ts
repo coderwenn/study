@@ -18,6 +18,9 @@ import {
   horizontalRule,
   indent,
   outdent,
+  commands,
+  keymap,
+  commandOrder,
 } from "../editor/markdownCommands";
 
 describe("applyEdit", () => {
@@ -167,5 +170,37 @@ describe("indent / outdent", () => {
   it("outdent 列表项 → 升级（去 2 空格）", () => {
     const s = st("  - 子", 0, 0);
     expect(applyEdit(s, outdent(s)).value).toBe("- 子");
+  });
+});
+
+describe("注册表", () => {
+  it("commands 覆盖所有命令 id", () => {
+    const ids = Object.keys(commands);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "bold", "italic", "strikethrough", "inlineCode", "link",
+        "h1", "h2", "h3", "quote", "unorderedList", "orderedList", "taskList",
+        "codeBlock", "insertTable", "horizontalRule", "indent", "outdent",
+      ])
+    );
+  });
+  it("keymap 把组合映射到命令 id", () => {
+    expect(keymap["mod+KeyB"]).toBe("bold");
+    expect(keymap["mod+KeyI"]).toBe("italic");
+    expect(keymap["mod+shift+KeyX"]).toBe("strikethrough");
+    expect(keymap["mod+KeyE"]).toBe("inlineCode");
+    expect(keymap["mod+KeyK"]).toBe("link");
+    expect(keymap["mod+alt+Digit1"]).toBe("h1");
+    expect(keymap["mod+alt+Digit2"]).toBe("h2");
+    expect(keymap["mod+alt+Digit3"]).toBe("h3");
+    expect(keymap["mod+alt+KeyQ"]).toBe("quote");
+    expect(keymap["mod+alt+KeyC"]).toBe("codeBlock");
+    expect(keymap["mod+shift+Digit8"]).toBe("unorderedList");
+    expect(keymap["mod+shift+Digit7"]).toBe("orderedList");
+    expect(keymap["mod+alt+KeyT"]).toBe("taskList");
+  });
+  it("commandOrder 给出工具栏分组顺序", () => {
+    expect(commandOrder[0]).toBe("bold");
+    expect(commandOrder).toContain("horizontalRule");
   });
 });
