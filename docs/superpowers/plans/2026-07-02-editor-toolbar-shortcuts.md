@@ -320,7 +320,7 @@ export const link: Command = (s: EditorState): Edit => {
   const sel = s.value.slice(s.selectionStart, s.selectionEnd);
   const text = sel.length > 0 ? sel : "链接文本";
   const inserted = `[${text}](url)`;
-  const urlStart = s.selectionStart + 1 + text.length + 1; // [ 文本 ](
+  const urlStart = s.selectionStart + 1 + text.length + 2; // 跳过 '[' + text + ']('
   if (sel.length > 0) {
     return {
       deleteStart: s.selectionStart,
@@ -452,9 +452,32 @@ function toggleLinePrefix(prefix: string): Command {
   };
 }
 
-export const h1: Command = toggleLinePrefix("# ");
-export const h2: Command = toggleLinePrefix("## ");
-export const h3: Command = toggleLinePrefix("### ");
+// 标题：先去掉任意已有标题级别(#~######)，再设为目标级别；已是目标级别则去除(toggle)
+function setHeading(level: number): Command {
+  const prefix = "#".repeat(level) + " ";
+  const headingRe = /^#{1,6} /;
+  return (s: EditorState): Edit => {
+    const { start, end } = lineRange(s);
+    const lines = s.value.slice(start, end).split("\n");
+    const nextBlock = lines
+      .map((l) => {
+        const body = l.replace(headingRe, "");
+        return l.startsWith(prefix) ? body : prefix + body;
+      })
+      .join("\n");
+    return {
+      deleteStart: start,
+      deleteEnd: end,
+      insert: nextBlock,
+      selectStart: start,
+      selectEnd: start + nextBlock.length,
+    };
+  };
+}
+
+export const h1: Command = setHeading(1);
+export const h2: Command = setHeading(2);
+export const h3: Command = setHeading(3);
 export const quote: Command = toggleLinePrefix("> ");
 export const unorderedList: Command = toggleLinePrefix("- ");
 export const orderedList: Command = toggleLinePrefix("1. ");
