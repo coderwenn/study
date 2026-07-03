@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from app.config import settings
 from app.services.wiki_publish_service import make_slug, publish_note, render_wiki_source
+from tests.helpers import register_and_login
 
 
 def _note(**kw):
@@ -103,3 +104,67 @@ def test_publish_overwrites_existing(tmp_path, monkeypatch):
     r = publish_note(note)
     assert r["overwritten"] is True
     assert "新正文" in (tmp_path / "同标题.md").read_text(encoding="utf-8")
+
+
+# —— 路由层：POST /api/notes/{id}/wiki ——
+
+
+def _h(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _make_note(client, token, title="待发布", content="正文"):
+    return client.post(
+        "/api/notes/", json={"title": title, "content": content}, headers=_h(token)
+    ).json()["id"]
+
+
+def test_publish_503_when_not_configured(client, monkeypatch):
+    """未配置（path/owner 为空）→ 503（显式清空，避免依赖本地 .env）"""
+    monkeypatch.setattr(settings, "wiki_entries_path", "")
+    monkeypatch.setattr(settings, "wiki_owner", "")
+    token = register_and_login(client)
+    nid = _make_note(client, token)
+    r = client.post(f"/api/notes/{nid}/wiki", headers=_h(token))
+    assert r.status_code == 503
+
+
+def test_publish_owner_only(client, monkeypatch, tmp_path):
+    """仅 WIKI_OWNER 用户可发布；其他用户 403"""
+    monkeypatch.setattr(settings, "wiki_entries_path", str(tmp_path))
+    monkeypatch.setattr(settings, "wiki_owner", "alice")
+    alice = register_and_login(client, "alice", "secret123")
+    bob = register_and_login(client, "bob", "secret123")
+    nid = _make_note(client, alice)
+    assert client.post(f"/api/notes/{nid}/wiki", headers=_h(alice)).status_code == 200
+    assert client.post(f"/api/notes/{nid}/wiki", headers=_h(bob)).status_code == 403
+
+
+def test_publish_user_isolation_404(client, monkeypatch, tmp_path):
+    """owner 也不能发布别人的笔记 → 404"""
+    monkeypatch.setattr(settings, "wiki_entries_path", str(tmp_path))
+    monkeypatch.setattr(settings, "wiki_owner", "alice")
+    alice = register_and_login(client, "alice", "secret123")
+    bob = register_and_login(client, "bob", "secret123")
+    bob_note = _make_note(client, bob, title="bob的")
+    # alice 是 owner，但该笔记不属于她 → 404（不泄漏存在性）
+    r = client.post(f"/api/notes/{bob_note}/wiki", headers=_h(alice))
+    assert r.status_code == 404
+
+
+def test_publish_success_writes_file(client, monkeypatch, tmp_path):
+    """owner 发布自己的笔记 → 200 且文件落地，frontmatter 含溯源"""
+    monkeypatch.setattr(settings, "wiki_entries_path", str(tmp_path))
+    monkeypatch.setattr(settings, "wiki_owner", "alice")
+    monkeypatch.setattr(settings, "wiki_uid", 0)
+    monkeypatch.setattr(settings, "wiki_gid", 0)
+    alice = register_and_login(client, "alice", "secret123")
+    nid = _make_note(client, alice, title="读书笔记：深度学习", content="正文")
+    r = client.post(f"/api/notes/{nid}/wiki", headers=_h(alice))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["slug"] == "读书笔记-深度学习"
+    assert body["overwritten"] is False
+    f = tmp_path / "读书笔记-深度学习.md"
+    assert f.exists()
+    assert "source: notes-app" in f.read_text(encoding="utf-8")
