@@ -26,3 +26,27 @@ def make_slug(title: str, note_id: int) -> str:
     # 拉丁字母小写（CJK 无影响）
     s = s.lower()
     return s or f"note-{note_id}"
+
+
+def _yaml_str(s: str) -> str:
+    """转成双引号 YAML 标量：转义反斜杠与双引号，规避冒号/引号导致的解析歧义"""
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def render_wiki_source(note) -> str:
+    """把笔记渲染成 Wiki Source 的完整 .md：轻量溯源 frontmatter + H1 + 原文"""
+    created = note.created_at.date().isoformat()
+    updated = note.updated_at.date().isoformat()
+    # 标签作为 YAML inline list（每个名字都转义）；无标签则空
+    tags = ", ".join(_yaml_str(t.name) for t in note.tags) if note.tags else ""
+    fm = (
+        "---\n"
+        f"title: {_yaml_str(note.title)}\n"
+        "source: notes-app\n"
+        f"note_id: {note.id}\n"
+        f"created: {created}\n"
+        f"updated: {updated}\n"
+        f"tags: [{tags}]\n"
+        "---\n"
+    )
+    return f"{fm}# {note.title}\n\n{note.content}\n"
