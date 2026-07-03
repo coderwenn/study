@@ -1,7 +1,8 @@
 // 编辑器：标题、保护开关、导出、标签区、Markdown 分栏；输入防抖自动保存
 // 逻辑保持不变：本地状态与服务端解耦，脏标记 + 1.5s 防抖提交
 import { useEffect, useRef, useState } from "react";
-import { Download, Lock, NotebookPen } from "lucide-react";
+import { Download, Lock, NotebookPen, Send } from "lucide-react";
+import { publishNoteToWiki } from "../api/wiki";
 import { useNote, useUpdateNote } from "../hooks/useNotes";
 import MarkdownSplit from "./MarkdownSplit";
 import TagPicker from "./TagPicker";
@@ -15,6 +16,9 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
   const [content, setContent] = useState("");
   const [tagIds, setTagIds] = useState<number[]>([]);
   const [protected_, setProtected] = useState(false);
+  // 发布到 Wiki 的瞬时状态：null=无提示；4s 自动清空（与 exportMd 同为本地函数，无缓存副作用）
+  const [wikiMsg, setWikiMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [publishing, setPublishing] = useState(false);
   // 脏标记：仅当用户真正改动后才自动保存，避免切换笔记/无关重渲染时用旧值覆盖服务端
   const dirty = useRef(false);
   // 自动保存的防抖定时器句柄
@@ -106,6 +110,27 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
     URL.revokeObjectURL(url);
   }
 
+  // 发布到 Wiki：把当前笔记写进服务器 entries/（仅 owner；失败显示后端 detail）
+  async function publishToWiki() {
+    if (!note) return;
+    setPublishing(true);
+    setWikiMsg(null);
+    try {
+      const r = await publishNoteToWiki(note.id);
+      setWikiMsg({
+        kind: "ok",
+        text: r.overwritten ? `已更新：${r.slug}.md` : `已发布：${r.slug}.md`,
+      });
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail;
+      setWikiMsg({ kind: "err", text: typeof detail === "string" ? detail : "发布失败" });
+    } finally {
+      setPublishing(false);
+      // 4s 后自动清空提示，避免长期占用顶栏
+      setTimeout(() => setWikiMsg(null), 4000);
+    }
+  }
+
   return (
     <main className="flex-1 min-w-0 h-full bg-white flex flex-col">
       {/* 顶栏：标题 + 导出 + 保护开关 */}
@@ -118,6 +143,22 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
           className="font-semibold border-none focus:ring-0 focus:outline-none p-0 w-full text-sm text-on-surface placeholder:text-outline-variant bg-transparent"
         />
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={publishToWiki}
+            disabled={publishing}
+            title="发布到 Wiki（写进服务器 entries/）"
+            className="flex items-center gap-1 px-3 py-1.5 border border-outline-variant rounded-md text-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors disabled:opacity-60"
+          >
+            <Send className="w-[18px] h-[18px]" />
+            <span>{publishing ? "发布中…" : "发布到 Wiki"}</span>
+          </button>
+          {wikiMsg && (
+            <span
+              className={`text-xs ${wikiMsg.kind === "ok" ? "text-primary" : "text-red-600"}`}
+            >
+              {wikiMsg.text}
+            </span>
+          )}
           <button
             onClick={exportMd}
             title="导出为 Markdown"
