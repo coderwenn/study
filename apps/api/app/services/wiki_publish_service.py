@@ -50,3 +50,23 @@ def render_wiki_source(note) -> str:
         "---\n"
     )
     return f"{fm}# {note.title}\n\n{note.content}\n"
+
+
+def publish_note(note) -> dict:
+    """把笔记作为 Wiki Source 写进 entries/，返回 {path, slug, overwritten}。
+    原子写（临时文件 + os.replace）防 Hermes 并发读到半截；可选 chown 成宿主机 uid。"""
+    base = Path(settings.wiki_entries_path)
+    slug = make_slug(note.title, note.id)
+    target = base / f"{slug}.md"
+    overwritten = target.exists()
+    # 目录可能不存在（首次发布）
+    base.mkdir(parents=True, exist_ok=True)
+    # 临时文件用 pid 命名，避免并发发布互相踩
+    tmp = base / f".{slug}.{os.getpid()}.tmp"
+    tmp.write_text(render_wiki_source(note), encoding="utf-8")
+    os.replace(tmp, target)  # 原子替换
+    os.chmod(target, 0o644)
+    # 配置了宿主机 uid/gid 才 chown（容器需以 root 运行；见 ADR-001）
+    if settings.wiki_uid or settings.wiki_gid:
+        os.chown(target, settings.wiki_uid, settings.wiki_gid)
+    return {"path": str(target), "slug": slug, "overwritten": overwritten}

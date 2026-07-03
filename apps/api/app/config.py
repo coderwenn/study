@@ -11,6 +11,15 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
+    # —— Wiki 发布：把笔记作为来源写进 Hermes llm-wiki 的 entries/ 目录 ——
+    # 容器内 entries/ 绝对路径；为空则功能关闭（端点返回 503）
+    wiki_entries_path: str = ""
+    # 允许发布的用户名（owner）；为空则功能关闭
+    wiki_owner: str = ""
+    # 写完文件后 chown 的宿主机 uid/gid；0 表示不 chown（见 ADR-001）
+    wiki_uid: int = 0
+    wiki_gid: int = 0
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

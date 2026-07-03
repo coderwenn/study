@@ -2,7 +2,8 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from app.services.wiki_publish_service import make_slug, render_wiki_source
+from app.config import settings
+from app.services.wiki_publish_service import make_slug, publish_note, render_wiki_source
 
 
 def _note(**kw):
@@ -75,3 +76,30 @@ def test_render_no_tags_empty_list():
     """无标签 → tags: []"""
     out = render_wiki_source(_note(id=1, title="t", content=""))
     assert "tags: []" in out
+
+
+def test_publish_writes_file_and_returns_path(tmp_path, monkeypatch):
+    """写文件成功，返回 path/slug/overwritten=False"""
+    monkeypatch.setattr(settings, "wiki_entries_path", str(tmp_path))
+    monkeypatch.setattr(settings, "wiki_uid", 0)
+    monkeypatch.setattr(settings, "wiki_gid", 0)
+    note = _note(id=42, title="读书笔记：深度学习", content="正文")
+    r = publish_note(note)
+    assert r["slug"] == "读书笔记-深度学习"
+    assert r["overwritten"] is False
+    f = tmp_path / "读书笔记-深度学习.md"
+    assert f.exists()
+    assert "# 读书笔记：深度学习" in f.read_text(encoding="utf-8")
+
+
+def test_publish_overwrites_existing(tmp_path, monkeypatch):
+    """再次发布同一篇 → overwritten=True，内容更新"""
+    monkeypatch.setattr(settings, "wiki_entries_path", str(tmp_path))
+    monkeypatch.setattr(settings, "wiki_uid", 0)
+    monkeypatch.setattr(settings, "wiki_gid", 0)
+    note = _note(id=1, title="同标题", content="旧")
+    assert publish_note(note)["overwritten"] is False
+    note.content = "新正文"
+    r = publish_note(note)
+    assert r["overwritten"] is True
+    assert "新正文" in (tmp_path / "同标题.md").read_text(encoding="utf-8")
