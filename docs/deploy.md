@@ -118,6 +118,27 @@ git pull
 docker compose up -d --build      # 重建镜像并滚动重启
 ```
 
+## 8.5 发布笔记到 LLM Wiki（可选）
+
+若服务器上部署了 Hermes 的 llm-wiki，可把笔记一键发布为 wiki「来源」：
+
+1. 确保宿主机目录存在且属主正确（Hermes 以该用户读写）：
+   ```bash
+   mkdir -p /home/ubuntu/wiki/entries
+   id -u ubuntu   # 记下 uid（通常 1000）
+   ```
+2. 在根 `.env` 填：
+   ```bash
+   WIKI_OWNER=你的笔记应用登录名
+   WIKI_UID=1000
+   WIKI_GID=1000
+   ```
+   （`WIKI_ENTRIES_PATH` 由 compose 固定为容器内 `/wiki/entries`，宿主机固定挂 `/home/ubuntu/wiki/entries`，无需改。）
+3. `docker compose up -d --build api` 重建后端。
+4. 以 `WIKI_OWNER` 用户登录笔记应用，打开任意笔记点「发布到 Wiki」，应提示 `已发布：xxx.md`。
+
+> 发布是「来源投递」：只写 `entries/`，不动 `index.md`/`log.md`/`SCHEMA.md`；交叉引用与综合成页交给 Hermes。详见 ADR-001。
+
 ## 9. 常用运维命令
 
 ```bash
