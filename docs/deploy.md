@@ -7,7 +7,7 @@
   :80/:443 →        │   caddy     │  ──/api/*──→  api:8000 (uvicorn)
                     │ (前端静态)   │              └→ /data/notes.db (卷)
                     └──────┬──────┘
-                           └──chat.coderwenn.cloud──→ open-webui:8080
+                           └──chat.example.com──→ open-webui:8080
                                                           └→ Hermes API (宿主机:8642)
 ```
 
@@ -87,13 +87,13 @@ export DP_Key=你的Token
 
 # 3. 申请通配符证书（EC-256）
 ~/.acme.sh/acme.sh --issue --dns dns_dp \
-  -d coderwenn.cloud -d '*.coderwenn.cloud' --keylength ec-256
+  -d example.com -d '*.example.com' --keylength ec-256
 
 # 4. 安装证书到 deploy/certs/ 并设置自动续期
 mkdir -p deploy/certs
-~/.acme.sh/acme.sh --install-cert -d coderwenn.cloud --ecc \
-  --key-file deploy/certs/coderwenn.cloud.key \
-  --fullchain-file deploy/certs/coderwenn.cloud.crt \
+~/.acme.sh/acme.sh --install-cert -d example.com --ecc \
+  --key-file deploy/certs/example.com.key \
+  --fullchain-file deploy/certs/example.com.crt \
   --reloadcmd "docker compose restart caddy"
 ```
 
@@ -138,6 +138,12 @@ docker compose up -d --build      # 重建镜像并滚动重启
 4. 以 `WIKI_OWNER` 用户登录笔记应用，打开任意笔记点「发布到 Wiki」，应提示 `已发布：xxx.md`。
 
 > 发布是「来源投递」：只写 `entries/`，不动 `index.md`/`log.md`/`SCHEMA.md`；交叉引用与综合成页交给 Hermes。详见 ADR-001。
+
+> **排错：点「发布到 Wiki」报 503「Wiki 未配置」？**
+> - `WIKI_OWNER` 必须写在**根 `.env`**（不是 `config.py`）。pydantic 里**空环境变量会覆盖默认值**——compose 的 `${WIKI_OWNER:-}` 在 `.env` 未设时注入空串，盖掉任何默认，于是 `wiki_owner=""` → 503。
+> - `WIKI_ENTRIES_PATH` 是**容器内路径** `/wiki/entries`（compose 写死），不是宿主机 `/home/ubuntu/...`——容器看不到宿主机路径，只能看挂载点。别去 `config.py` 改它。
+> - 改完 `.env` 必须 `docker compose up -d --build api` 重建容器才生效；改 host 源码不影响已构建镜像。
+> - 验证容器实拿到的值：`docker compose exec api printenv WIKI_OWNER WIKI_ENTRIES_PATH`。
 
 ## 9. 常用运维命令
 
