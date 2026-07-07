@@ -20,6 +20,19 @@ class Settings(BaseSettings):
     wiki_uid: int = 0
     wiki_gid: int = 0
 
+    # —— 网页总结：agent 抓取 + LLM 总结（OpenAI 兼容端点；见 ADR-001/002）——
+    # LLM 端点（OpenAI 兼容根，形如 http://host/v1）；三件全填才开启，否则端点 503
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+    llm_model: str = ""
+    # agent 循环硬上限
+    summarize_max_iters: int = 5            # 单次请求最大 LLM 往返数
+    summarize_timeout_seconds: int = 60     # 单次请求墙钟上限
+    summarize_max_bytes: int = 5_000_000    # fetch_page 体积上限（防内存炸弹）
+    # per-user 内存限流（滑动窗口）
+    summarize_rate_limit: int = 10          # 窗口内最大请求数
+    summarize_rate_window_seconds: int = 60
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
