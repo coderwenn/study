@@ -6,6 +6,7 @@ import pytest
 
 from app.services import summarize_service as ss
 from app.services.summarize_service import extract_main_text, fetch_page
+from app.services.summarize_service import chat_with_tools
 
 
 def _fake_dns(ip: str):
@@ -181,3 +182,50 @@ def test_fetch_too_large_aborted(monkeypatch):
     ))
     with pytest.raises(ss.FetchError):
         fetch_page("https://example.com/x", transport=transport)
+
+
+# —— chat_with_tools：LLM 客户端 ——
+
+
+def _llm_settings(monkeypatch):
+    """注入完整 LLM 配置（三件全填），供多任务复用"""
+    monkeypatch.setattr(ss.settings, "llm_base_url", "http://llm/v1")
+    monkeypatch.setattr(ss.settings, "llm_api_key", "key")
+    monkeypatch.setattr(ss.settings, "llm_model", "m")
+
+
+def test_chat_unconfigured_raises(monkeypatch):
+    """未配置 → LLMError(unconfigured)"""
+    monkeypatch.setattr(ss.settings, "llm_base_url", "")
+    with pytest.raises(ss.LLMError):
+        chat_with_tools([], [])
+
+
+def test_chat_posts_to_completions_and_returns_json(monkeypatch):
+    """POST 到 {base}/chat/completions，带 Authorization；回传解析后的 JSON"""
+    _llm_settings(monkeypatch)
+    seen = {}
+
+    def handler(req):
+        seen["url"] = str(req.url)
+        seen["auth"] = req.headers.get("authorization")
+        seen["body"] = req.read().decode()
+        return httpx.Response(200, json={"choices": [{"message": {"content": "hi"}}]})
+
+    resp = chat_with_tools(
+        [{"role": "user", "content": "x"}],
+        [{"type": "function", "function": {"name": "f"}}],
+        transport=httpx.MockTransport(handler),
+    )
+    assert seen["url"] == "http://llm/v1/chat/completions"
+    assert seen["auth"] == "Bearer key"
+    assert "tools" in seen["body"]
+    assert resp["choices"][0]["message"]["content"] == "hi"
+
+
+def test_chat_non_200_raises(monkeypatch):
+    """端点非 200 → LLMError(http)"""
+    _llm_settings(monkeypatch)
+    transport = httpx.MockTransport(lambda req: httpx.Response(500, text="boom"))
+    with pytest.raises(ss.LLMError):
+        chat_with_tools([], [], transport=transport)

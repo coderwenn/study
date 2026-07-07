@@ -145,3 +145,36 @@ def fetch_page(url: str, transport: httpx.BaseTransport | None = None) -> dict:
                 html = bytes(body).decode("utf-8", errors="replace")
                 return {"url": str(r.url), "html": html}
     raise FetchError("重定向次数过多", kind="redirect")
+
+
+def chat_with_tools(
+    messages: list[dict],
+    tools: list[dict],
+    tool_choice: str | None = None,
+    transport: httpx.BaseTransport | None = None,
+) -> dict:
+    """调一次 OpenAI 兼容 /v1/chat/completions（带 tools）。返回解析后的响应 JSON。
+    未配置→LLMError(unconfigured)；不可达/非 2xx→LLMError。"""
+    if not (settings.llm_base_url and settings.llm_api_key and settings.llm_model):
+        raise LLMError("LLM 未配置", kind="unconfigured")
+    url = settings.llm_base_url.rstrip("/") + "/chat/completions"
+    payload: dict = {
+        "model": settings.llm_model,
+        "messages": messages,
+        "tools": tools,
+        "temperature": 0.3,
+    }
+    if tool_choice:
+        payload["tool_choice"] = tool_choice
+    headers = {
+        "Authorization": f"Bearer {settings.llm_api_key}",
+        "Content-Type": "application/json",
+    }
+    try:
+        with httpx.Client(timeout=httpx.Timeout(15.0, read=60.0), transport=transport) as client:
+            r = client.post(url, json=payload, headers=headers)
+    except httpx.HTTPError as e:
+        raise LLMError(f"LLM 端点不可达：{e}", kind="unreachable") from e
+    if r.status_code != 200:
+        raise LLMError(f"LLM 返回 HTTP {r.status_code}", kind="http")
+    return r.json()
