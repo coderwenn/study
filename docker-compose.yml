@@ -6,6 +6,9 @@ services:
       context: ./apps/api
     container_name: notes-api
     restart: unless-stopped
+    # 与 open-webui 一致：让容器能访问宿主机上的 Hermes（:8642）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # SQLite 文件放挂载卷（绝对路径 /data/notes.db）
       DATABASE_URL: sqlite:////data/notes.db
@@ -18,6 +21,11 @@ services:
       WIKI_OWNER: ${WIKI_OWNER:-}
       WIKI_UID: ${WIKI_UID:-0}
       WIKI_GID: ${WIKI_GID:-0}
+      # —— 网页总结（agent 抓取+总结；不填则功能关闭，端点返回 503）——
+      # 直连 Hermes（与 open-webui 同一后端）；模型需支持 function-calling
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
     volumes:
       # 数据库持久化卷（删/重建容器数据不丢）
       - notes-data:/data

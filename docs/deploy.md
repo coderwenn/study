@@ -145,6 +145,26 @@ docker compose up -d --build      # 重建镜像并滚动重启
 > - 改完 `.env` 必须 `docker compose up -d --build api` 重建容器才生效；改 host 源码不影响已构建镜像。
 > - 验证容器实拿到的值：`docker compose exec api printenv WIKI_OWNER WIKI_ENTRIES_PATH`。
 
+## 8.6 网页总结（从链接总结，可选）
+
+让用户粘贴一条链接，后端 agent 抓取并总结成草稿，确认后保存为笔记（正文自带源链接溯源）。
+
+1. 在根 `.env` 填（直连 Hermes，与 `open-webui` 走同一后端；`api` 已配 `extra_hosts` 可访问宿主机）：
+   ```bash
+   LLM_BASE_URL=http://host.docker.internal:8642/v1   # 与 open-webui 的 OPENAI_API_BASE_URL 同源
+   LLM_API_KEY=你的密钥                                 # 通常与 HERMES_API_KEY 相同
+   LLM_MODEL=支持 function-calling 的模型名             # ⚠️ 模型必须支持工具调用，否则 agent 走不通
+   ```
+2. `docker compose up -d --build api` 重建后端。
+3. 登录笔记应用，点左栏「从链接总结」，粘贴一条公网文章链接，应出标题/总结/建议标签，编辑后可保存为笔记。
+
+> 后端是真·agent 工具调用循环（`fetch_page`→`extract_main_text`→`submit_draft`，见 ADR-001），不是写死管线。抓取做了 SSRF 防护（scheme 白名单 + DNS 解析后屏蔽内网/环回/链路本地 IP + 重定向逐跳重校验 + 体积/超时上限，见 ADR-002）。未配置 `LLM_*` 时端点返回 503。
+>
+> **排错：**
+> - 报 503「网页总结未配置」→ `LLM_*` 三件没填全；验证 `docker compose exec api printenv LLM_BASE_URL LLM_API_KEY LLM_MODEL`。
+> - agent 一直不收敛/触顶 504 → 多半是模型不支持 function-calling（不返回 `tool_calls`）；换一个支持工具调用的模型。
+> - 改完 `.env` 必须 `docker compose up -d --build api` 重建容器才生效。
+
 ## 9. 常用运维命令
 
 ```bash
