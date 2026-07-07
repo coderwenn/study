@@ -1,10 +1,11 @@
 # 网页总结：SSRF 守卫 / 抽取 / fetch / agent 循环 / 路由 测试
 import socket
 
+import httpx
 import pytest
 
 from app.services import summarize_service as ss
-from app.services.summarize_service import extract_main_text
+from app.services.summarize_service import extract_main_text, fetch_page
 
 
 def _fake_dns(ip: str):
@@ -100,3 +101,83 @@ def test_extract_returns_title_and_body():
 def test_extract_empty_html():
     """空 HTML → ("", "")"""
     assert extract_main_text("") == ("", "")
+
+
+# —— fetch_page：SSRF + 逐跳重定向 + 体积/类型闸门 ——
+
+
+def _pub_dns(monkeypatch):
+    """公网 DNS 桩（避免真实解析）"""
+    monkeypatch.setattr(socket, "getaddrinfo", _fake_dns("93.184.216.34"))
+
+
+def test_fetch_ok_html(monkeypatch):
+    """200 + text/html → 返回 {url, html}"""
+    _pub_dns(monkeypatch)
+    transport = httpx.MockTransport(lambda req: httpx.Response(
+        200, headers={"content-type": "text/html; charset=utf-8"}, content=b"<html><body>hi</body></html>"
+    ))
+    r = fetch_page("https://example.com/", transport=transport)
+    assert "hi" in r["html"]
+
+
+def test_fetch_rejects_private_url(monkeypatch):
+    """URL 解析到内网 → FetchError（即便 transport 是假的，validate_url 先挡）"""
+    monkeypatch.setattr(socket, "getaddrinfo", _fake_dns("10.0.0.1"))
+    transport = httpx.MockTransport(lambda req: httpx.Response(200, content=b"x"))
+    with pytest.raises(ss.FetchError):
+        fetch_page("https://internal/x", transport=transport)
+
+
+def test_fetch_follows_redirect_revalidating(monkeypatch):
+    """301 到新路径 → 逐跳重校验后跟随，拿到最终 HTML"""
+    _pub_dns(monkeypatch)
+
+    def handler(req):
+        if req.url.path == "/start":
+            return httpx.Response(301, headers={"location": "https://example.com/final"})
+        return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<p>final</p>")
+
+    r = fetch_page("https://example.com/start", transport=httpx.MockTransport(handler))
+    assert "final" in r["html"]
+
+
+def test_fetch_redirect_to_private_blocked(monkeypatch):
+    """重定向目标解析到内网 → FetchError（逐跳重校验生效）"""
+    _pub_dns(monkeypatch)
+
+    def handler(req):
+        if req.url.path == "/start":
+            return httpx.Response(302, headers={"location": "https://evil/x"})
+        return httpx.Response(200, content=b"x")
+
+    # 把 evil 的解析桩成内网；example.com 仍是公网
+    real_fake = _fake_dns("93.184.216.34")
+
+    def dns(host, port, *a, **kw):
+        return _fake_dns("10.5.5.5")(host, port, *a, **kw) if host == "evil" else real_fake(host, port, *a, **kw)
+
+    monkeypatch.setattr(socket, "getaddrinfo", dns)
+    with pytest.raises(ss.FetchError):
+        fetch_page("https://example.com/start", transport=httpx.MockTransport(handler))
+
+
+def test_fetch_non_html_rejected(monkeypatch):
+    """Content-Type 非 html → FetchError(content_type)"""
+    _pub_dns(monkeypatch)
+    transport = httpx.MockTransport(lambda req: httpx.Response(
+        200, headers={"content-type": "application/pdf"}, content=b"%PDF"
+    ))
+    with pytest.raises(ss.FetchError):
+        fetch_page("https://example.com/x", transport=transport)
+
+
+def test_fetch_too_large_aborted(monkeypatch):
+    """体积超限 → FetchError(too_large)"""
+    _pub_dns(monkeypatch)
+    monkeypatch.setattr(ss.settings, "summarize_max_bytes", 16)
+    transport = httpx.MockTransport(lambda req: httpx.Response(
+        200, headers={"content-type": "text/html"}, content=b"x" * 1024
+    ))
+    with pytest.raises(ss.FetchError):
+        fetch_page("https://example.com/x", transport=transport)

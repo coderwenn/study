@@ -5,6 +5,7 @@ import re
 import socket
 from urllib.parse import urlparse
 
+import httpx
 import trafilatura
 
 from app.config import settings
@@ -99,3 +100,48 @@ def extract_main_text(html: str) -> tuple[str, str]:
     except Exception:
         pass  # metadata 解析失败不影响正文
     return title, text
+
+
+_MAX_REDIRECTS = 5
+
+
+def fetch_page(url: str, transport: httpx.BaseTransport | None = None) -> dict:
+    """抓取一个 URL（含 SSRF 校验、逐跳重定向重校验、体积/超时上限、Content-Type 闸门）。
+    返回 {"url": final_url, "html": html}。失败抛 FetchError。
+    transport：测试注入 httpx.MockTransport；生产留空用真实连接。"""
+    # 入口校验（agent 内每次调用也都会过这里）
+    try:
+        validate_url(url)
+    except ValueError as e:
+        raise FetchError(str(e), kind="ssrf") from e
+    timeout = httpx.Timeout(10.0, read=30.0)
+    headers = {"User-Agent": "NotesPro-Summarizer/1.0 (+notes-app)"}
+    current = url
+    with httpx.Client(follow_redirects=False, timeout=timeout, headers=headers, transport=transport) as client:
+        for _ in range(_MAX_REDIRECTS + 1):
+            # 逐跳重校验（防 302 绕到内网）
+            try:
+                validate_url(current)
+            except ValueError as e:
+                raise FetchError(str(e), kind="ssrf") from e
+            with client.stream("GET", current) as r:
+                if r.status_code in (301, 302, 303, 307, 308):
+                    loc = r.headers.get("location")
+                    if not loc:
+                        raise FetchError("重定向缺 Location", kind="redirect")
+                    current = str(httpx.URL(current).join(loc))
+                    continue
+                if r.status_code != 200:
+                    raise FetchError(f"目标返回 HTTP {r.status_code}", kind="http")
+                ctype = r.headers.get("content-type", "").lower()
+                if "html" not in ctype:
+                    raise FetchError(f"非网页内容（{ctype or '未知'}）", kind="content_type")
+                # 流式读取 + 体积上限，防内存炸弹
+                body = bytearray()
+                for chunk in r.iter_bytes(chunk_size=65536):
+                    body.extend(chunk)
+                    if len(body) > settings.summarize_max_bytes:
+                        raise FetchError("页面体积超过上限", kind="too_large")
+                html = bytes(body).decode("utf-8", errors="replace")
+                return {"url": str(r.url), "html": html}
+    raise FetchError("重定向次数过多", kind="redirect")
