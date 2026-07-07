@@ -11,7 +11,10 @@ export async function getNote(id: number): Promise<Note> {
   return data;
 }
 
-export async function createNote(payload: Partial<Note> & { title: string }): Promise<Note> {
+// 创建负载：与后端 NoteCreate schema 对齐（title 必填，tag_ids 用于关联标签）
+export type NoteCreatePayload = Partial<Omit<Note, "tags">> & { title: string; tag_ids?: number[] };
+
+export async function createNote(payload: NoteCreatePayload): Promise<Note> {
   const { data } = await api.post<Note>("/api/notes/", payload);
   return data;
 }

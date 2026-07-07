@@ -3,12 +3,14 @@ import { useState } from "react";
 import Sidebar from "../components/Sidebar";
 import NoteList from "../components/NoteList";
 import NoteEditor from "../components/NoteEditor";
+import SummarizeDialog from "../components/SummarizeDialog";
 import { useCreateNote, useDeleteNote } from "../hooks/useNotes";
 
 export default function NotesPage() {
   const [query, setQuery] = useState("");
   const [tagId, setTagId] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [summarizeOpen, setSummarizeOpen] = useState(false);
   const createNote = useCreateNote();
   const deleteNote = useDeleteNote();
 
@@ -30,7 +32,12 @@ export default function NotesPage() {
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      <Sidebar selectedTagId={tagId} onSelectTag={setTagId} onCreate={handleCreate} />
+      <Sidebar
+        selectedTagId={tagId}
+        onSelectTag={setTagId}
+        onCreate={handleCreate}
+        onSummarize={() => setSummarizeOpen(true)}
+      />
       <NoteList
         selectedNoteId={selectedId}
         onSelect={setSelectedId}
@@ -40,6 +47,11 @@ export default function NotesPage() {
         onDelete={handleDelete}
       />
       <NoteEditor noteId={selectedId} />
+      <SummarizeDialog
+        open={summarizeOpen}
+        onClose={() => setSummarizeOpen(false)}
+        onSaved={(id) => setSelectedId(id)}
+      />
     </div>
   );
 }

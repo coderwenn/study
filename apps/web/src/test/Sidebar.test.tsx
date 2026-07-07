@@ -27,7 +27,7 @@ describe("Sidebar 隐藏空标签", () => {
   it("note_count===0 的标签不渲染，note_count>0 的渲染", () => {
     state.tags = TAGS;
     const { getByText, queryByText } = render(
-      <Sidebar selectedTagId={null} onSelectTag={() => {}} onCreate={() => {}} />
+      <Sidebar selectedTagId={null} onSelectTag={() => {}} onCreate={() => {}} onSummarize={() => {}} />
     );
     expect(getByText("工作")).toBeInTheDocument();
     expect(getByText("生活")).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe("Sidebar 隐藏空标签", () => {
     state.tags = TAGS; // id:1 工作(3) 可见，id:2 空(0)，id:3 生活(1)
     const onSelectTag = vi.fn();
     const { rerender } = render(
-      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} />
+      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} onSummarize={() => {}} />
     );
     // 初始「工作」可见，不应触发回退
     expect(onSelectTag).not.toHaveBeenCalled();
@@ -50,7 +50,7 @@ describe("Sidebar 隐藏空标签", () => {
       { id: 3, name: "生活", note_count: 1 },
     ];
     rerender(
-      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} />
+      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} onSummarize={() => {}} />
     );
     await waitFor(() => expect(onSelectTag).toHaveBeenCalledWith(null));
   });
@@ -59,7 +59,7 @@ describe("Sidebar 隐藏空标签", () => {
     state.tags = TAGS;
     const onSelectTag = vi.fn();
     render(
-      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} />
+      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} onSummarize={() => {}} />
     );
     expect(onSelectTag).not.toHaveBeenCalled();
   });

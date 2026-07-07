@@ -1,6 +1,7 @@
 // 笔记的服务端状态：列表、详情、增删改，自动失效相关缓存
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as notesApi from "../api/notes";
+import type { NoteCreatePayload } from "../api/notes";
 import { TAGS_KEY } from "./useTags";
 import type { Note } from "../types";
 
@@ -24,7 +25,7 @@ export function useNote(id: number | null) {
 export function useCreateNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<Note> & { title: string }) => notesApi.createNote(payload),
+    mutationFn: (payload: NoteCreatePayload) => notesApi.createNote(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: NOTES_KEY });
       // 笔记的标签关联会改变各标签 note_count，需同步失效标签缓存

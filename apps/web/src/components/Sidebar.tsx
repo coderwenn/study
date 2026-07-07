@@ -1,7 +1,7 @@
 // 左栏：品牌区 / 新建笔记 / 标签筛选（点击切换）/ 收藏·废纸篓（占位）/ 账户退出
 // 收藏、废纸篓、设置、帮助 暂无后端逻辑，仅作视觉占位，遵循现有逻辑不接入假功能。
 import { useEffect, useState } from "react";
-import { Plus, FileText, Tag, Star, Trash2, Settings, Info, LogOut } from "lucide-react";
+import { Plus, FileText, Tag, Star, Trash2, Settings, Info, LogOut, Link2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTags } from "../hooks/useTags";
 import ConfirmDialog from "./ConfirmDialog";
@@ -11,13 +11,14 @@ interface Props {
   selectedTagId: number | null;
   onSelectTag: (id: number | null) => void;
   onCreate: () => void;
+  onSummarize: () => void; // 打开「从链接总结」弹窗
 }
 
 // 导航项的公共类名（激活/非激活在调用处拼接）
 const itemBase =
   "flex items-center gap-3 px-6 py-2.5 text-sm cursor-pointer border-r-[3px] border-transparent transition-colors";
 
-export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props) {
+export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummarize }: Props) {
   const { user, logout } = useAuth();
   const { data: tags = [] } = useTags();
   // 仅展示有笔记引用的标签（note_count > 0），空标签不占「标签位」
@@ -50,6 +51,13 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate }: Props)
         >
           <Plus className="w-[18px] h-[18px]" />
           <span>新建笔记</span>
+        </button>
+        <button
+          onClick={onSummarize}
+          className="w-full mt-2 border border-outline-variant hover:bg-surface-container-low text-on-surface font-medium px-4 rounded-md flex items-center justify-center gap-2 transition-colors py-1.5 text-sm"
+        >
+          <Link2 className="w-[18px] h-[18px]" />
+          <span>从链接总结</span>
         </button>
       </div>
 
