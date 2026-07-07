@@ -1,8 +1,10 @@
 # 网页总结：SSRF 守卫 + 抽取 + fetch + LLM 工具调用循环（agent）
 # 详见 ADR-001（agent over 管线）、ADR-002（SSRF 防护）、CONTEXT.md
 import ipaddress
+import json
 import re
 import socket
+import time
 from urllib.parse import urlparse
 
 import httpx
@@ -178,3 +180,101 @@ def chat_with_tools(
     if r.status_code != 200:
         raise LLMError(f"LLM 返回 HTTP {r.status_code}", kind="http")
     return r.json()
+
+
+# —— agent 工具定义（OpenAI function-calling schema）——
+TOOLS = [
+    {"type": "function", "function": {
+        "name": "fetch_page",
+        "description": "抓取一个网页的 HTML（服务端已做 SSRF 校验）。",
+        "parameters": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]},
+    }},
+    {"type": "function", "function": {
+        "name": "extract_main_text",
+        "description": "从 HTML 抽取正文与标题，返回 {title, text}。",
+        "parameters": {"type": "object", "properties": {"html": {"type": "string"}}, "required": ["html"]},
+    }},
+    {"type": "function", "function": {
+        "name": "submit_draft",
+        "description": "提交最终草稿并结束任务。调用此工具即代表完成。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "summary": {"type": "string"},
+                "suggested_tags": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["title", "summary"],
+        },
+    }},
+]
+
+_SYSTEM_PROMPT = (
+    "你是网页总结助手。流程：用 fetch_page 抓用户给的链接 → 用 extract_main_text 抽正文 → "
+    "用 submit_draft 提交中文总结草稿（title/summary/suggested_tags）。"
+    "summary 用 Markdown、简洁有条理。若抓不到或不是文章，仍用 submit_draft 如实说明。"
+)
+
+
+def _dispatch_tool(name: str, args: dict, fetch_transport: httpx.BaseTransport | None = None) -> dict:
+    """执行单个工具调用；抓取错误吞成结果回喂 agent（不外抛）"""
+    try:
+        if name == "fetch_page":
+            res = fetch_page(args["url"], transport=fetch_transport)
+            return {"ok": True, "url": res["url"], "html": res["html"][: settings.summarize_max_bytes]}
+        if name == "extract_main_text":
+            title, text = extract_main_text(args.get("html", ""))
+            return {"ok": True, "title": title, "text": text}
+        return {"ok": False, "error": f"未知工具：{name}"}
+    except (FetchError, ValueError) as e:
+        return {"ok": False, "error": str(e)}
+
+
+def summarize_url(
+    url: str,
+    *,
+    fetch_transport: httpx.BaseTransport | None = None,
+    llm_transport: httpx.BaseTransport | None = None,
+) -> dict:
+    """agent 主循环：返回 {url, title, summary, suggested_tags}。
+    入口 URL 预校验（违规 ValueError）；触顶迭代/超时 → SummarizeError。"""
+    validate_url(url)  # 入口预校验，给用户清晰错误
+    deadline = time.monotonic() + settings.summarize_timeout_seconds
+    messages = [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": f"请总结这个链接：{url}"},
+    ]
+    for _ in range(settings.summarize_max_iters):
+        if time.monotonic() > deadline:
+            raise SummarizeError("总结超时", kind="timeout")
+        resp = chat_with_tools(messages, TOOLS, transport=llm_transport)
+        msg = resp["choices"][0]["message"]
+        tool_calls = msg.get("tool_calls")
+        # assistant 消息原样回填（含 tool_calls 才符合 OpenAI 对话约束）
+        assistant: dict = {"role": "assistant", "content": msg.get("content")}
+        if tool_calls:
+            assistant["tool_calls"] = tool_calls
+        messages.append(assistant)
+        if not tool_calls:
+            # 没调工具也没 submit：模型想结束但没产出结构化草稿
+            raise SummarizeError("模型未产出草稿", kind="no_draft")
+        # 派发每个工具调用
+        for tc in tool_calls:
+            fn = tc["function"]["name"]
+            args = json.loads(tc["function"].get("arguments") or "{}")
+            if fn == "submit_draft":
+                return {
+                    "url": url,
+                    "title": args.get("title", ""),
+                    "summary": args.get("summary", ""),
+                    "suggested_tags": args.get("suggested_tags", []) or [],
+                }
+            result = _dispatch_tool(fn, args, fetch_transport)
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc["id"],
+                "content": json.dumps(result, ensure_ascii=False),
+            })
+            if time.monotonic() > deadline:
+                raise SummarizeError("总结超时", kind="timeout")
+    raise SummarizeError("达到最大迭代次数仍未完成", kind="max_iters")

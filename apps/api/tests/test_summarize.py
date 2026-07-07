@@ -1,4 +1,5 @@
 # 网页总结：SSRF 守卫 / 抽取 / fetch / agent 循环 / 路由 测试
+import json
 import socket
 
 import httpx
@@ -6,7 +7,7 @@ import pytest
 
 from app.services import summarize_service as ss
 from app.services.summarize_service import extract_main_text, fetch_page
-from app.services.summarize_service import chat_with_tools
+from app.services.summarize_service import chat_with_tools, summarize_url
 
 
 def _fake_dns(ip: str):
@@ -229,3 +230,90 @@ def test_chat_non_200_raises(monkeypatch):
     transport = httpx.MockTransport(lambda req: httpx.Response(500, text="boom"))
     with pytest.raises(ss.LLMError):
         chat_with_tools([], [], transport=transport)
+
+
+# —— summarize_url：agent 工具调用循环 ——
+
+
+def _tc(name, args, cid="c0"):
+    """构造一个 tool_call 对象（OpenAI 形态）"""
+    return {"id": cid, "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}
+
+
+def _resp(tool_calls=None, content=None):
+    """构造 OpenAI 兼容的 choices 响应"""
+    msg = {"role": "assistant", "content": content}
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+    return {"choices": [{"message": msg}]}
+
+
+def _html_transport():
+    return httpx.MockTransport(lambda req: httpx.Response(
+        200, headers={"content-type": "text/html"},
+        content="<html><head><title>T</title></head><body><p>正文ABC</p></body></html>".encode("utf-8"),
+    ))
+
+
+def test_agent_loop_happy_path(monkeypatch):
+    """三轮：fetch_page → extract_main_text → submit_draft → 返回草稿"""
+    _llm_settings(monkeypatch)
+    _pub_dns(monkeypatch)
+    calls = {"n": 0}
+
+    def llm_handler(req):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(200, json=_resp([_tc("fetch_page", {"url": "https://example.com/"}, "c1")]))
+        if calls["n"] == 2:
+            return httpx.Response(200, json=_resp([_tc("extract_main_text", {"html": "<x>正文ABC</x>"}, "c2")]))
+        return httpx.Response(200, json=_resp([_tc(
+            "submit_draft", {"title": "T", "summary": "总结-ABC", "suggested_tags": ["网页", "AI"]}, "c3")]))
+
+    r = summarize_url(
+        "https://example.com/",
+        fetch_transport=_html_transport(),
+        llm_transport=httpx.MockTransport(llm_handler),
+    )
+    assert r["url"] == "https://example.com/"
+    assert r["title"] == "T"
+    assert "ABC" in r["summary"]
+    assert r["suggested_tags"] == ["网页", "AI"]
+
+
+def test_agent_loop_caps_iters(monkeypatch):
+    """模型一直只调 fetch_page 永不 submit → 触顶 max_iters → SummarizeError"""
+    _llm_settings(monkeypatch)
+    _pub_dns(monkeypatch)
+    monkeypatch.setattr(ss.settings, "summarize_max_iters", 2)
+
+    def llm_handler(req):
+        return httpx.Response(200, json=_resp([_tc("fetch_page", {"url": "https://example.com/"}, "c1")]))
+
+    with pytest.raises(ss.SummarizeError) as exc:
+        summarize_url("https://example.com/", fetch_transport=_html_transport(),
+                      llm_transport=httpx.MockTransport(llm_handler))
+    assert exc.value.kind == "max_iters"
+
+
+def test_agent_loop_prevalidates_user_url(monkeypatch):
+    """入口 URL 解析到内网 → 直接 ValueError（不进 LLM）"""
+    _llm_settings(monkeypatch)
+    monkeypatch.setattr(socket, "getaddrinfo", _fake_dns("10.0.0.1"))
+    with pytest.raises(ValueError):
+        summarize_url("https://evil/")
+
+
+def test_agent_loop_no_draft(monkeypatch):
+    """模型回了纯文本、没工具调用 → SummarizeError(no_draft)"""
+    _llm_settings(monkeypatch)
+    _pub_dns(monkeypatch)
+    monkeypatch.setattr(ss.settings, "summarize_max_iters", 1)
+
+    def llm_handler(req):
+        return httpx.Response(200, json=_resp(content="我不会"))
+
+    with pytest.raises(ss.SummarizeError) as exc:
+        summarize_url("https://example.com/", fetch_transport=_html_transport(),
+                      llm_transport=httpx.MockTransport(llm_handler))
+    assert exc.value.kind == "no_draft"

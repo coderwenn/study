@@ -779,7 +779,7 @@ def _resp(tool_calls=None, content=None):
 
 def _html_transport():
     return httpx.MockTransport(lambda req: httpx.Response(
-        200, headers={"content-type": "text/html"}, content=b"<html><head><title>T</title></head><body><p>正文ABC</p></body></html>"
+        200, headers={"content-type": "text/html"}, content="<html><head><title>T</title></head><body><p>正文ABC</p></body></html>".encode("utf-8")
     ))
 
 
