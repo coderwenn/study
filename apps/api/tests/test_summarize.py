@@ -4,6 +4,7 @@ import socket
 import pytest
 
 from app.services import summarize_service as ss
+from app.services.summarize_service import extract_main_text
 
 
 def _fake_dns(ip: str):
@@ -71,3 +72,31 @@ def test_validate_blocks_any_private_among_resolved(monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", fake)
     with pytest.raises(ValueError):
         ss.validate_url("https://example.com/")
+
+
+_HTML = """
+<html><head><title>如何学习系统设计 — 实战指南</title></head>
+<body>
+  <nav>首页 博客 关于</nav>
+  <article>
+    <h1>如何学习系统设计</h1>
+    <p>系统设计是一门权衡的艺术。本文讲三条核心原则：边界、容量、退化。</p>
+    <p>先画清边界，再算容量，最后设计退化路径。</p>
+  </article>
+  <footer>版权所有 联系我们</footer>
+</body></html>
+"""
+
+
+def test_extract_returns_title_and_body():
+    """抽取：标题来自 <title>/metadata，正文含核心句、不含导航/页脚"""
+    title, text = extract_main_text(_HTML)
+    assert "系统设计" in title
+    assert "权衡的艺术" in text
+    # 导航/页脚的噪声不应进正文
+    assert "联系我们" not in text
+
+
+def test_extract_empty_html():
+    """空 HTML → ("", "")"""
+    assert extract_main_text("") == ("", "")

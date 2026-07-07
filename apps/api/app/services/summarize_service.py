@@ -1,8 +1,11 @@
 # 网页总结：SSRF 守卫 + 抽取 + fetch + LLM 工具调用循环（agent）
 # 详见 ADR-001（agent over 管线）、ADR-002（SSRF 防护）、CONTEXT.md
 import ipaddress
+import re
 import socket
 from urllib.parse import urlparse
+
+import trafilatura
 
 from app.config import settings
 
@@ -68,3 +71,31 @@ def validate_url(url: str) -> str:
         if _is_blocked_ip(ip):
             raise ValueError(f"目标地址 {ip} 属内网/保留段，已拒绝")
     return url
+
+
+_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+
+
+def _title_from_html(html: str) -> str:
+    """<title> 正则兜底抽标题（trafilatura metadata 不可用时的回退）"""
+    m = _TITLE_RE.search(html)
+    return m.group(1).strip() if m else ""
+
+
+def extract_main_text(html: str) -> tuple[str, str]:
+    """从 HTML 抽取正文。返回 (title, text)。trafilatura 抽不出正文时 text 为空串。"""
+    if not html:
+        return "", ""
+    # 正文：favor_precision 偏向精准、去噪（导航/页脚/评论）
+    text = trafilatura.extract(
+        html, include_comments=False, include_tables=False, favor_precision=True
+    ) or ""
+    # 标题：优先 trafilatura metadata，不可用则 <title> 正则
+    title = _title_from_html(html)
+    try:
+        meta = trafilatura.extract_metadata(html)
+        if meta and getattr(meta, "title", None):
+            title = (meta.title or "").strip() or title
+    except Exception:
+        pass  # metadata 解析失败不影响正文
+    return title, text
