@@ -8,6 +8,7 @@ import pytest
 from app.services import summarize_service as ss
 from app.services.summarize_service import extract_main_text, fetch_page
 from app.services.summarize_service import chat_with_tools, summarize_url
+from app.services.rate_limiter import RateLimiter
 
 
 def _fake_dns(ip: str):
@@ -317,3 +318,32 @@ def test_agent_loop_no_draft(monkeypatch):
         summarize_url("https://example.com/", fetch_transport=_html_transport(),
                       llm_transport=httpx.MockTransport(llm_handler))
     assert exc.value.kind == "no_draft"
+
+
+# —— RateLimiter：内存级 per-user 滑动窗口 ——
+
+
+def test_rate_limiter_allows_until_limit():
+    """窗口内前 N 次放行，第 N+1 次拒绝"""
+    rl = RateLimiter(max_calls=3, window_seconds=60)
+    assert rl.allow("alice", now=1.0) is True
+    assert rl.allow("alice", now=2.0) is True
+    assert rl.allow("alice", now=3.0) is True
+    assert rl.allow("alice", now=4.0) is False  # 第 4 次拒绝
+
+
+def test_rate_limiter_window_slides():
+    """超出窗口后旧命中失效，重新放行"""
+    rl = RateLimiter(max_calls=2, window_seconds=10)
+    assert rl.allow("a", now=0.0) is True
+    assert rl.allow("a", now=5.0) is True
+    assert rl.allow("a", now=6.0) is False
+    assert rl.allow("a", now=11.0) is True  # 0.0 的命中已出窗
+
+
+def test_rate_limiter_keys_independent():
+    """不同用户互不影响"""
+    rl = RateLimiter(max_calls=1, window_seconds=60)
+    assert rl.allow("a", now=1.0) is True
+    assert rl.allow("b", now=1.0) is True
+    assert rl.allow("a", now=1.0) is False
