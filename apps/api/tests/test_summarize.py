@@ -347,3 +347,93 @@ def test_rate_limiter_keys_independent():
     assert rl.allow("a", now=1.0) is True
     assert rl.allow("b", now=1.0) is True
     assert rl.allow("a", now=1.0) is False
+
+
+# —— 路由层：POST /api/summarize ——
+
+from tests.helpers import register_and_login  # noqa: E402
+
+
+def _h(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_summarize_503_when_unconfigured(client, monkeypatch):
+    """LLM_* 未配置 → 503"""
+    monkeypatch.setattr(ss.settings, "llm_base_url", "")
+    token = register_and_login(client)
+    r = client.post("/api/summarize", json={"url": "https://example.com/"}, headers=_h(token))
+    assert r.status_code == 503
+
+
+def test_summarize_400_bad_url(client, monkeypatch):
+    """非 http(s) scheme → 400（需先配齐 LLM_* 才会越过 503 守卫）"""
+    _llm_settings(monkeypatch)
+    token = register_and_login(client)
+    r = client.post("/api/summarize", json={"url": "file:///etc/passwd"}, headers=_h(token))
+    assert r.status_code == 400
+
+
+def test_summarize_422_empty_url(client, monkeypatch):
+    """空 URL → Pydantic 422（在路由函数前拦）"""
+    _llm_settings(monkeypatch)
+    token = register_and_login(client)
+    r = client.post("/api/summarize", json={"url": ""}, headers=_h(token))
+    assert r.status_code == 422
+
+
+def test_summarize_429_rate_limited(client, monkeypatch):
+    """超 per-user 限流 → 429"""
+    _llm_settings(monkeypatch)
+    # 把路由里的限流器换成 1 次/窗口
+    from app.routers import summarize as router_mod
+    monkeypatch.setattr(router_mod, "_limiter", RateLimiter(1, 60))
+    token = register_and_login(client)
+    # 第一发：mock 服务返回草稿（成功）
+    monkeypatch.setattr(
+        ss, "summarize_url",
+        lambda url, **kw: {"url": url, "title": "T", "summary": "S", "suggested_tags": []},
+    )
+    assert client.post("/api/summarize", json={"url": "https://example.com/"}, headers=_h(token)).status_code == 200
+    # 第二发：限流
+    r = client.post("/api/summarize", json={"url": "https://example.com/"}, headers=_h(token))
+    assert r.status_code == 429
+
+
+def test_summarize_504_timeout(client, monkeypatch):
+    """agent 触顶/超时 → 504"""
+    _llm_settings(monkeypatch)
+
+    def boom(url, **kw):
+        raise ss.SummarizeError("超时", kind="timeout")
+
+    monkeypatch.setattr(ss, "summarize_url", boom)
+    token = register_and_login(client)
+    r = client.post("/api/summarize", json={"url": "https://example.com/"}, headers=_h(token))
+    assert r.status_code == 504
+
+
+def test_summarize_502_llm_failure(client, monkeypatch):
+    """LLM 端点故障 → 502"""
+    _llm_settings(monkeypatch)
+
+    def boom(url, **kw):
+        raise ss.LLMError("down", kind="http")
+
+    monkeypatch.setattr(ss, "summarize_url", boom)
+    token = register_and_login(client)
+    r = client.post("/api/summarize", json={"url": "https://example.com/"}, headers=_h(token))
+    assert r.status_code == 502
+
+
+def test_summarize_200_returns_draft(client, monkeypatch):
+    """成功 → 200 + 草稿"""
+    _llm_settings(monkeypatch)
+    monkeypatch.setattr(ss, "summarize_url", lambda url, **kw: {
+        "url": url, "title": "标题", "summary": "总结正文", "suggested_tags": ["a", "b"]})
+    token = register_and_login(client)
+    r = client.post("/api/summarize", json={"url": "https://example.com/"}, headers=_h(token))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["title"] == "标题"
+    assert body["suggested_tags"] == ["a", "b"]
