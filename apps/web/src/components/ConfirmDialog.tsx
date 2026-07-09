@@ -1,4 +1,4 @@
-// 通用确认弹窗：Material Design 3 风格（遮罩 + 居中卡片）。
+// 通用确认弹窗：Lumina 设计语言（遮罩模糊 + 居中卡片 + 缩放进场动效）。
 // 可复用于「退出登录」「删除确认」等需要二次确认的场景。
 import { useEffect, useRef, type ReactNode } from "react";
 
@@ -40,18 +40,18 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    // 遮罩层：点击空白处视为取消
+    // 遮罩层：模糊 + 半透明，点击空白处视为取消
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm animate-fade-in"
       onClick={onCancel}
     >
-      {/* 卡片：阻止点击冒泡到遮罩，避免点卡片内部误关闭 */}
+      {/* 卡片：缩放进场 + 柔和多层投影，阻止点击冒泡到遮罩 */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className="w-[360px] max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-2xl p-6"
+        className="w-[440px] max-w-[calc(100vw-2rem)] bg-surface-raised rounded-2xl shadow-soft-lg p-7 animate-scale-in border border-outline-variant/40"
       >
         <h2 className="text-base font-semibold text-on-surface m-0 mb-2">{title}</h2>
         {message && (
@@ -61,7 +61,7 @@ export default function ConfirmDialog({
           <button
             ref={cancelRef}
             onClick={onCancel}
-            className="px-4 py-1.5 text-sm font-medium rounded-md text-on-surface-variant hover:bg-surface-container-highest transition-colors"
+            className="px-4 py-2 text-sm font-medium rounded-lg text-on-surface-variant hover:bg-surface-hover transition-all duration-200 ease-out-expo"
           >
             {cancelText}
           </button>
@@ -69,8 +69,8 @@ export default function ConfirmDialog({
             onClick={onConfirm}
             className={
               danger
-                ? "px-4 py-1.5 text-sm font-medium rounded-md text-white bg-red-500 hover:bg-red-600 transition-colors"
-                : "px-4 py-1.5 text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark transition-colors"
+                ? "px-4 py-2 text-sm font-medium rounded-lg text-white bg-gradient-to-br from-error to-red-600 hover:shadow-soft-md transition-all duration-200 ease-out-expo hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+                : "px-4 py-2 text-sm font-medium rounded-lg text-white bg-gradient-to-br from-primary to-primary-dark hover:shadow-glow-primary transition-all duration-200 ease-out-expo hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
             }
           >
             {confirmText}

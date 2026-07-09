@@ -1,11 +1,16 @@
 // 编辑器：标题、保护开关、导出、标签区、Markdown 分栏；输入防抖自动保存
+// Lumina 设计：玻璃质感顶栏、统一描边操作按钮、精致保护开关、空状态优化。
 // 逻辑保持不变：本地状态与服务端解耦，脏标记 + 1.5s 防抖提交
 import { useEffect, useRef, useState } from "react";
-import { Download, Lock, NotebookPen, Send } from "lucide-react";
+import { Download, Lock, NotebookPen, Send, CheckCircle2, XCircle } from "lucide-react";
 import { publishNoteToWiki } from "../api/wiki";
 import { useNote, useUpdateNote } from "../hooks/useNotes";
 import MarkdownSplit from "./MarkdownSplit";
 import TagPicker from "./TagPicker";
+
+// 操作按钮公共样式：描边 + 悬停柔光背景
+const actionBtn =
+  "flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant rounded-lg text-xs font-medium text-on-surface-variant hover:bg-surface-hover hover:text-on-surface hover:border-outline transition-all duration-200 ease-out-expo disabled:opacity-60 disabled:hover:bg-transparent";
 
 export default function NoteEditor({ noteId }: { noteId: number | null }) {
   const { data: note } = useNote(noteId);
@@ -56,10 +61,14 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
   // 未选中笔记：空状态
   if (!note) {
     return (
-      <main className="flex-1 min-w-0 h-full bg-white flex flex-col items-center justify-center gap-3 text-outline p-8 text-center">
-        <NotebookPen className="w-14 h-14 text-outline-variant" />
-        <p className="text-base font-semibold text-on-surface-variant m-0">选择一条笔记开始编辑</p>
-        <p className="text-[13px] m-0">或点击左侧「新建笔记」创建</p>
+      <main className="flex-1 min-w-0 h-full bg-surface-raised flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-soft to-surface-container-low flex items-center justify-center shadow-soft">
+          <NotebookPen className="w-10 h-10 text-primary/60" />
+        </div>
+        <div>
+          <p className="text-base font-semibold text-on-surface-variant m-0 mb-1">选择一条笔记开始编辑</p>
+          <p className="text-[13px] text-on-surface-muted m-0">或点击左侧「新建笔记」创建</p>
+        </div>
       </main>
     );
   }
@@ -132,44 +141,50 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
   }
 
   return (
-    <main className="flex-1 min-w-0 h-full bg-white flex flex-col">
-      {/* 顶栏：标题 + 导出 + 保护开关 */}
-      <header className="px-6 border-b border-outline-variant flex items-center justify-between gap-4 sticky top-0 bg-white z-10 h-12">
+    <main className="flex-1 min-w-0 h-full bg-surface-raised flex flex-col">
+      {/* 顶栏：玻璃质感 + 粘性定位 */}
+      <header className="px-5 border-b border-outline-variant flex items-center justify-between gap-4 sticky top-0 bg-surface-raised z-20 h-14">
         <input
           type="text"
           placeholder="输入标题..."
           value={title}
           onChange={onTitle}
-          className="font-semibold border-none focus:ring-0 focus:outline-none p-0 w-full text-sm text-on-surface placeholder:text-outline-variant bg-transparent"
+          className="font-semibold border-none focus:ring-0 focus:outline-none p-0 w-full text-base text-on-surface placeholder:text-on-surface-muted bg-transparent"
         />
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          {/* 发布到 Wiki + 结果提示 */}
           <button
             onClick={publishToWiki}
             disabled={publishing}
             title="发布到 Wiki（写进服务器 entries/）"
-            className="flex items-center gap-1 px-3 py-1.5 border border-outline-variant rounded-md text-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors disabled:opacity-60"
+            className={actionBtn}
           >
-            <Send className="w-[18px] h-[18px]" />
+            <Send className="w-[15px] h-[15px]" />
             <span>{publishing ? "发布中…" : "发布到 Wiki"}</span>
           </button>
           {wikiMsg && (
             <span
-              className={`text-xs ${wikiMsg.kind === "ok" ? "text-primary" : "text-red-600"}`}
+              className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md animate-slide-down ${
+                wikiMsg.kind === "ok"
+                  ? "text-success bg-success/10"
+                  : "text-error bg-error/10"
+              }`}
             >
+              {wikiMsg.kind === "ok" ? (
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              ) : (
+                <XCircle className="w-3.5 h-3.5" />
+              )}
               {wikiMsg.text}
             </span>
           )}
-          <button
-            onClick={exportMd}
-            title="导出为 Markdown"
-            className="flex items-center gap-1 px-3 py-1.5 border border-outline-variant rounded-md text-sm font-medium text-on-surface hover:bg-surface-container-low transition-colors"
-          >
-            <Download className="w-[18px] h-[18px]" />
+          <button onClick={exportMd} title="导出为 Markdown" className={actionBtn}>
+            <Download className="w-[15px] h-[15px]" />
             <span>导出</span>
           </button>
-          <div className="h-6 w-px bg-outline-variant mx-1" />
+          <div className="h-5 w-px bg-outline-variant mx-0.5" />
           {/* 保护开关：复用 .switch 组件 + 原 checkbox 受控逻辑 */}
-          <label className="flex items-center cursor-pointer gap-2 select-none">
+          <label className="flex items-center cursor-pointer gap-2 select-none px-1">
             <span className="switch">
               <input type="checkbox" checked={protected_} onChange={onProtected} />
               <span className="switch-track">
@@ -177,11 +192,11 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
               </span>
             </span>
             <span
-              className={`text-sm font-medium flex items-center gap-1 ${
+              className={`text-xs font-medium flex items-center gap-1 transition-colors duration-200 ${
                 protected_ ? "text-primary" : "text-on-surface-variant"
               }`}
             >
-              <Lock className="w-4 h-4" />
+              <Lock className="w-3.5 h-3.5" />
               保护
             </span>
           </label>

@@ -1,7 +1,8 @@
 /*
  * Tailwind 入口 + 全局基础样式。
- * 主题色板定义在 tailwind.config.js；这里仅放 @tailwind 指令、
- * 全局重置、滚动条美化，以及一个用纯 CSS 绘制的「保护开关」组件。
+ * 主题色板与设计 token 定义在 tailwind.config.js（Lumina 设计语言）。
+ * 这里仅放 @tailwind 指令、全局重置、滚动条美化、字体渲染优化，
+ * 以及一个用纯 CSS 绘制的「保护开关」组件。
  */
 @tailwind base;
 @tailwind components;
@@ -16,32 +17,56 @@
 
   body {
     @apply bg-surface text-on-surface overflow-hidden font-sans antialiased;
+    /* 字体渲染：亚像素抗锯齿，让小字更清晰 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* 全局默认过渡：让颜色/背景切换更柔和 */
   }
 
-  /* 美化滚动条 */
+  /* 文本选中色：主色半透明，与品牌一致 */
+  ::selection {
+    background-color: rgb(99 102 241 / 0.18);
+    color: inherit;
+  }
+
+  /* 精致滚动条：纤细、半透明、悬停加深 */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 10px;
+    background: rgb(161 161 170 / 0.3);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background 0.2s ease;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    background: rgb(161 161 170 / 0.5);
+    background-clip: padding-box;
+  }
+
+  /* 全局链接与按钮的焦点可见态：统一的发光环 */
+  a:focus-visible,
+  button:focus-visible {
+    outline: none;
   }
 }
 
 @layer components {
-  /* 保护开关（toggle）：隐藏原生 checkbox，用 track/thumb 绘制开关 */
+  /*
+   * 保护开关（toggle）：隐藏原生 checkbox，用 track/thumb 绘制开关。
+   * 升级：更柔和的过渡、激活态主色渐变、thumb 投影更细腻。
+   */
   .switch {
     position: relative;
     display: inline-block;
-    width: 36px;
-    height: 20px;
+    width: 38px;
+    height: 22px;
     flex-shrink: 0;
   }
   .switch input {
@@ -53,25 +78,29 @@
   .switch-track {
     position: absolute;
     inset: 0;
-    background: #c4c6d0;
+    background: #d4d4d8;
     border-radius: 999px;
-    transition: background 0.2s ease;
+    transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .switch-thumb {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 16px;
-    height: 16px;
-    background: #fff;
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
     border-radius: 50%;
-    transition: transform 0.2s ease;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 2px 4px rgb(0 0 0 / 0.15), 0 0 0 0.5px rgb(0 0 0 / 0.04);
   }
   .switch input:checked + .switch-track {
-    background: #2563eb;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
   }
   .switch input:checked + .switch-track .switch-thumb {
     transform: translateX(16px);
+  }
+  /* 键盘聚焦：发光环 */
+  .switch input:focus-visible + .switch-track {
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.2);
   }
 }
