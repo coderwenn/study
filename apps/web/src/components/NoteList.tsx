@@ -33,7 +33,7 @@ export default function NoteList({
   });
 
   return (
-    <section className="w-[240px] shrink-0 h-full border-r border-outline-variant bg-white flex flex-col">
+    <section className="w-[240px] shrink-0 h-full border-r border-outline-variant bg-surface-raised flex flex-col">
       {/* 搜索 */}
       <div className="p-4 border-b border-outline-variant">
         <div className="relative">
@@ -86,7 +86,7 @@ export default function NoteList({
                   className={`shrink-0 p-0.5 rounded transition-colors ${
                     n.is_protected
                       ? "text-outline-variant/40 cursor-not-allowed"
-                      : "text-outline-variant opacity-0 group-hover:opacity-100 hover:!text-red-500"
+                      : "text-outline-variant opacity-0 group-hover:opacity-100 hover:!text-error"
                   }`}
                 >
                   <Trash2 className="w-4 h-4" />

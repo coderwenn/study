@@ -1,11 +1,84 @@
 /*
  * Tailwind 入口 + 全局基础样式。
- * 主题色板定义在 tailwind.config.js；这里仅放 @tailwind 指令、
- * 全局重置、滚动条美化，以及一个用纯 CSS 绘制的「保护开关」组件。
+ * 主题色板通过 CSS 变量驱动：tailwind.config.js 中所有颜色引用 rgb(var(--xxx))，
+ * 在 :root（亮色）和 .dark（暗色）中重定义变量值即可全局切换主题。
+ * 变量值用 "R G B" 空格分隔格式，让 Tailwind 的 <alpha-value> 透明度修饰符可用。
  */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============== 亮色主题（默认，Material Design 3 Light） ============== */
+@layer base {
+  :root {
+    /* 主色 */
+    --color-primary: 37 99 235;          /* #2563eb */
+    --color-primary-dark: 29 78 216;     /* #1d4ed8 */
+
+    /* 表面层级（从浅到深） */
+    --color-surface: 250 248 255;                    /* #faf8ff 应用底色 */
+    --color-surface-container-low: 243 243 254;     /* #f3f3fe 侧栏底 */
+    --color-surface-container-highest: 226 226 238; /* #e2e2ee 悬停底 */
+    --color-surface-raised: 255 255 255;             /* #ffffff 卡片背景（原 bg-white） */
+    --color-surface-hover: 243 243 254;             /* #f3f3fe 悬停高亮 */
+
+    /* 文字三级 */
+    --color-on-surface: 26 27 31;          /* #1a1b1f 主文字 */
+    --color-on-surface-variant: 68 71 78; /* #44474e 次要 */
+    --color-on-surface-muted: 116 119 127; /* #74777f 弱化 */
+
+    /* 描边 */
+    --color-outline: 116 119 127;        /* #74777f */
+    --color-outline-variant: 196 198 208;/* #c4c6d0 */
+
+    /* 语义色 */
+    --color-success: 16 185 129;  /* #10b981 */
+    --color-warning: 245 158 11; /* #f59e0b */
+    --color-error: 239 68 68;     /* #ef4444 */
+    --color-info: 59 130 246;     /* #3b82f6 */
+
+    /* 滚动条 */
+    --scrollbar-thumb: 209 213 219;       /* #d1d5db */
+    --scrollbar-thumb-hover: 156 163 175; /* #9ca3af */
+
+    color-scheme: light;
+  }
+
+  /* ============== 暗色主题（Material Design 3 Dark） ============== */
+  .dark {
+    /* 主色：相比亮色略亮以在暗底上更醒目，但保持与白字按钮 AA 对比度（≈4:1） */
+    --color-primary: 59 130 246;         /* #3b82f6 中蓝，配白字可读 */
+    --color-primary-dark: 37 99 235;     /* #2563eb 悬停加深 */
+
+    /* 表面层级：从最深的底色到稍浅的容器 */
+    --color-surface: 18 19 23;            /* #121317 应用底色 */
+    --color-surface-container-low: 26 27 31;  /* #1a1b1f 侧栏底 */
+    --color-surface-container-highest: 42 43 50; /* #2a2b32 悬停底 */
+    --color-surface-raised: 31 32 36;     /* #1f2024 卡片背景 */
+    --color-surface-hover: 42 43 50;      /* #2a2b32 悬停高亮 */
+
+    /* 文字三级：反转，主文字浅 */
+    --color-on-surface: 228 226 230;       /* #e4e2e6 主文字 */
+    --color-on-surface-variant: 196 198 208; /* #c4c6d0 次要 */
+    --color-on-surface-muted: 142 144 153;  /* #8e9099 弱化 */
+
+    /* 描边：暗色变暗 */
+    --color-outline: 142 144 153;          /* #8e9099 */
+    --color-outline-variant: 68 71 78;     /* #44474e */
+
+    /* 语义色：在暗色下提亮 */
+    --color-success: 52 211 153;  /* #34d399 */
+    --color-warning: 251 191 36; /* #fbc02d */
+    --color-error: 248 113 113;  /* #f87171 */
+    --color-info: 96 165 250;    /* #60a5fa */
+
+    /* 滚动条 */
+    --scrollbar-thumb: 68 71 78;        /* #44474e */
+    --scrollbar-thumb-hover: 116 119 127; /* #74777f */
+
+    color-scheme: dark;
+  }
+}
 
 @layer base {
   html,
@@ -16,9 +89,11 @@
 
   body {
     @apply bg-surface text-on-surface overflow-hidden font-sans antialiased;
+    /* 主题切换平滑过渡：颜色、背景在 250ms 内插值 */
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
-  /* 美化滚动条 */
+  /* 滚动条美化：使用变量跟随主题 */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -27,11 +102,31 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #d1d5db;
+    background: rgb(var(--scrollbar-thumb));
     border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    background: rgb(var(--scrollbar-thumb-hover));
+  }
+
+  /* 让 prose（Markdown 预览）跟随主题：覆盖 typography 默认的浅色硬编码 */
+  .prose {
+    --tw-prose-body: rgb(var(--color-on-surface));
+    --tw-prose-headings: rgb(var(--color-on-surface));
+    --tw-prose-lead: rgb(var(--color-on-surface-variant));
+    --tw-prose-links: rgb(var(--color-primary));
+    --tw-prose-bold: rgb(var(--color-on-surface));
+    --tw-prose-counters: rgb(var(--color-on-surface-muted));
+    --tw-prose-bullets: rgb(var(--color-outline-variant));
+    --tw-prose-hr: rgb(var(--color-outline-variant));
+    --tw-prose-quotes: rgb(var(--color-on-surface-variant));
+    --tw-prose-quote-borders: rgb(var(--color-primary));
+    --tw-prose-captions: rgb(var(--color-on-surface-muted));
+    --tw-prose-code: rgb(var(--color-on-surface));
+    --tw-prose-pre-code: rgb(var(--color-on-surface));
+    --tw-prose-pre-bg: rgb(var(--color-surface-container-low));
+    --tw-prose-th-borders: rgb(var(--color-outline-variant));
+    --tw-prose-td-borders: rgb(var(--color-outline-variant));
   }
 }
 
@@ -53,7 +148,7 @@
   .switch-track {
     position: absolute;
     inset: 0;
-    background: #c4c6d0;
+    background: rgb(var(--color-outline-variant));
     border-radius: 999px;
     transition: background 0.2s ease;
   }
@@ -63,13 +158,13 @@
     left: 2px;
     width: 16px;
     height: 16px;
-    background: #fff;
+    background: rgb(var(--color-surface-raised));
     border-radius: 50%;
     transition: transform 0.2s ease;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   }
   .switch input:checked + .switch-track {
-    background: #2563eb;
+    background: rgb(var(--color-primary));
   }
   .switch input:checked + .switch-track .switch-thumb {
     transform: translateX(16px);

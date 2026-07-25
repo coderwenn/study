@@ -51,7 +51,7 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className="w-[360px] max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-2xl p-6"
+        className="w-[360px] max-w-[calc(100vw-2rem)] bg-surface-raised rounded-xl shadow-2xl p-6 border border-outline-variant/50"
       >
         <h2 className="text-base font-semibold text-on-surface m-0 mb-2">{title}</h2>
         {message && (
@@ -69,7 +69,7 @@ export default function ConfirmDialog({
             onClick={onConfirm}
             className={
               danger
-                ? "px-4 py-1.5 text-sm font-medium rounded-md text-white bg-red-500 hover:bg-red-600 transition-colors"
+                ? "px-4 py-1.5 text-sm font-medium rounded-md text-white bg-error hover:bg-error/90 transition-colors"
                 : "px-4 py-1.5 text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark transition-colors"
             }
           >
