@@ -2,7 +2,7 @@
 // 收藏、废纸篓、帮助 暂无后端逻辑，仅作视觉占位，遵循现有逻辑不接入假功能。
 // 设置已接入：点击打开主题切换弹窗（SettingsDialog）。
 import { useEffect, useState } from "react";
-import { Plus, FileText, Tag, Star, Trash2, Settings, Info, LogOut, Link2 } from "lucide-react";
+import { Plus, FileText, Tag, Star, Trash2, Settings, Info, LogOut, Link2, Upload } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTags } from "../hooks/useTags";
 import { useTheme } from "../hooks/useTheme";
@@ -15,13 +15,15 @@ interface Props {
   onSelectTag: (id: number | null) => void;
   onCreate: () => void;
   onSummarize: () => void; // 打开「从链接总结」弹窗
+  onImport: () => void;   // 打开「导入 Markdown」弹窗
 }
 
 // 导航项的公共类名（激活/非激活在调用处拼接）
+// px-4 让内容更紧凑，避免在 1K 显示器上侧栏显得空旷宽
 const itemBase =
-  "flex items-center gap-3 px-6 py-2.5 text-sm cursor-pointer border-r-[3px] border-transparent transition-colors";
+  "flex items-center gap-3 px-4 py-2.5 text-sm cursor-pointer border-r-[3px] border-transparent transition-colors";
 
-export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummarize }: Props) {
+export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummarize, onImport }: Props) {
   const { user, logout } = useAuth();
   const { data: tags = [] } = useTags();
   const { theme } = useTheme();
@@ -42,10 +44,10 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummar
   const initial = (user?.username?.[0] ?? "U").toUpperCase();
 
   return (
-    <aside className="w-[200px] shrink-0 h-full bg-surface-container-low border-r border-outline-variant flex flex-col py-6">
+    <aside className="w-[184px] shrink-0 h-full bg-surface-container-low border-r border-outline-variant flex flex-col py-5">
       {/* 品牌 */}
-      <div className="px-6 mb-8">
-        <h1 className="text-xl font-bold tracking-tight text-primary m-0">Notes Pro</h1>
+      <div className="px-4 mb-6">
+        <h1 className="text-lg font-bold tracking-tight text-primary m-0">Notes Pro</h1>
         <p className="text-xs text-on-surface-variant">Personal Workspace</p>
       </div>
 
@@ -65,11 +67,18 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummar
           <Link2 className="w-[18px] h-[18px]" />
           <span>从链接总结</span>
         </button>
+        <button
+          onClick={onImport}
+          className="w-full mt-2 border border-outline-variant hover:bg-surface-container-low text-on-surface font-medium px-4 rounded-md flex items-center justify-center gap-2 transition-colors py-1.5 text-sm"
+        >
+          <Upload className="w-[18px] h-[18px]" />
+          <span>导入 Markdown</span>
+        </button>
       </div>
 
       {/* 导航：标签分组 */}
       <nav className="flex-1 space-y-1">
-        <div className="px-6 mb-2 text-[11px] font-semibold text-outline uppercase tracking-wider">
+        <div className="px-4 mb-2 text-[11px] font-semibold text-outline uppercase tracking-wider">
           标签
         </div>
 
