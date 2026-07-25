@@ -8,6 +8,7 @@ import type { Tag } from "../types";
 const state = vi.hoisted(() => ({
   tags: [] as Tag[],
   user: { username: "alice" },
+  trash: [] as { id: number; title: string }[],
 }));
 
 vi.mock("../hooks/useTags", () => ({
@@ -16,6 +17,10 @@ vi.mock("../hooks/useTags", () => ({
 vi.mock("../hooks/useAuth", () => ({
   useAuth: () => ({ user: state.user, logout: () => {} }),
 }));
+// Sidebar 顶栏展示废纸篓角标，mock useTrashList 提供 QueryClient 之外的环境
+vi.mock("../hooks/useNotes", () => ({
+  useTrashList: () => ({ data: state.trash }),
+}));
 
 const TAGS: Tag[] = [
   { id: 1, name: "工作", note_count: 3 },
@@ -23,12 +28,20 @@ const TAGS: Tag[] = [
   { id: 3, name: "生活", note_count: 1 },
 ];
 
+// Sidebar 公共 props（view/onViewChange 为新增的视图切换参数）
+const sidebarProps = {
+  view: "notes" as const,
+  onViewChange: () => {},
+  onSelectTag: () => {},
+  onCreate: () => {},
+  onSummarize: () => {},
+  onImport: () => {},
+};
+
 describe("Sidebar 隐藏空标签", () => {
   it("note_count===0 的标签不渲染，note_count>0 的渲染", () => {
     state.tags = TAGS;
-    const { getByText, queryByText } = render(
-      <Sidebar selectedTagId={null} onSelectTag={() => {}} onCreate={() => {}} onSummarize={() => {}} onImport={() => {}} />
-    );
+    const { getByText, queryByText } = render(<Sidebar {...sidebarProps} />);
     expect(getByText("工作")).toBeInTheDocument();
     expect(getByText("生活")).toBeInTheDocument();
     expect(queryByText("空标签")).toBeNull();
@@ -38,7 +51,7 @@ describe("Sidebar 隐藏空标签", () => {
     state.tags = TAGS; // id:1 工作(3) 可见，id:2 空(0)，id:3 生活(1)
     const onSelectTag = vi.fn();
     const { rerender } = render(
-      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} onSummarize={() => {}} onImport={() => {}} />
+      <Sidebar {...sidebarProps} onSelectTag={onSelectTag} selectedTagId={1} />
     );
     // 初始「工作」可见，不应触发回退
     expect(onSelectTag).not.toHaveBeenCalled();
@@ -49,18 +62,14 @@ describe("Sidebar 隐藏空标签", () => {
       { id: 2, name: "空标签", note_count: 0 },
       { id: 3, name: "生活", note_count: 1 },
     ];
-    rerender(
-      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} onSummarize={() => {}} onImport={() => {}} />
-    );
+    rerender(<Sidebar {...sidebarProps} onSelectTag={onSelectTag} selectedTagId={1} />);
     await waitFor(() => expect(onSelectTag).toHaveBeenCalledWith(null));
   });
 
   it("选中的标签可见时，不调用 onSelectTag", () => {
     state.tags = TAGS;
     const onSelectTag = vi.fn();
-    render(
-      <Sidebar selectedTagId={1} onSelectTag={onSelectTag} onCreate={() => {}} onSummarize={() => {}} onImport={() => {}} />
-    );
+    render(<Sidebar {...sidebarProps} onSelectTag={onSelectTag} selectedTagId={1} />);
     expect(onSelectTag).not.toHaveBeenCalled();
   });
 });

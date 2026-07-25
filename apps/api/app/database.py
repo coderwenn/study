@@ -53,10 +53,32 @@ _FTS_SQL = [
 ]
 
 
+def _migrate_notes_table(conn) -> None:
+    """
+    幂等迁移：为 notes 表追加废纸篓 / 置顶相关列。
+    - SQLite 不支持 ADD COLUMN IF NOT EXISTS，故先查 PRAGMA table_info 判断列是否存在；
+    - 新增列均带默认值，旧行自动填默认值，不影响现有数据。
+    """
+    # 取出 notes 表当前所有列名
+    existing_cols = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(notes)").fetchall()}
+    # 待补齐的列：(列名, DDL 片段)
+    pending = [
+        ("is_deleted", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("deleted_at", "DATETIME"),
+        ("is_pinned", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("pinned_at", "DATETIME"),
+    ]
+    for col_name, ddl in pending:
+        if col_name not in existing_cols:
+            conn.exec_driver_sql(f"ALTER TABLE notes ADD COLUMN {col_name} {ddl}")
+
+
 def init_db() -> None:
-    """开发环境：创建所有表 + FTS 索引。生产应使用 Alembic 迁移。"""
+    """开发环境：创建所有表 + FTS 索引 + 幂等迁移。生产应使用 Alembic 迁移。"""
     Base.metadata.create_all(bind=engine)
     # 必须在 notes 表存在之后执行（触发器引用 notes 表）
     with engine.begin() as conn:
+        # 先做表结构迁移（新增列），再建 FTS 与触发器
+        _migrate_notes_table(conn)
         for stmt in _FTS_SQL:
             conn.exec_driver_sql(stmt)

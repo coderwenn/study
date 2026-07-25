@@ -1,5 +1,5 @@
 import api from "./client";
-import type { Note, NoteListItem } from "../types";
+import type { Note, NoteListItem, TrashListItem } from "../types";
 
 export async function listNotes(params?: { q?: string; tag?: number }): Promise<NoteListItem[]> {
   const { data } = await api.get<NoteListItem[]>("/api/notes/", { params });
@@ -28,6 +28,36 @@ export async function updateNote(id: number, payload: NoteUpdatePayload): Promis
   return data;
 }
 
+// 软删除笔记：移入废纸篓，受保护笔记后端返回 403
 export async function deleteNote(id: number): Promise<void> {
   await api.delete(`/api/notes/${id}`);
+}
+
+// 列出废纸篓中的笔记（按删除时间倒序）
+export async function listTrash(): Promise<TrashListItem[]> {
+  const { data } = await api.get<TrashListItem[]>("/api/notes/trash/");
+  return data;
+}
+
+// 从废纸篓恢复笔记
+export async function restoreNote(id: number): Promise<Note> {
+  const { data } = await api.post<Note>(`/api/notes/${id}/restore`);
+  return data;
+}
+
+// 彻底删除笔记（物理删除，仅限废纸篓中的笔记）
+export async function purgeNote(id: number): Promise<void> {
+  await api.delete(`/api/notes/${id}/purge`);
+}
+
+// 置顶笔记
+export async function pinNote(id: number): Promise<Note> {
+  const { data } = await api.post<Note>(`/api/notes/${id}/pin`);
+  return data;
+}
+
+// 取消置顶
+export async function unpinNote(id: number): Promise<Note> {
+  const { data } = await api.post<Note>(`/api/notes/${id}/unpin`);
+  return data;
 }

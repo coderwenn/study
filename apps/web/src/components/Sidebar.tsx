@@ -1,16 +1,22 @@
-// 左栏：品牌区 / 新建笔记 / 标签筛选（点击切换）/ 收藏·废纸篓（占位）/ 账户退出
-// 收藏、废纸篓、帮助 暂无后端逻辑，仅作视觉占位，遵循现有逻辑不接入假功能。
+// 左栏：品牌区 / 新建笔记 / 标签筛选（点击切换）/ 废纸篓 / 账户退出
+// 视图切换：通过 view + onViewChange 控制「全部笔记」与「废纸篓」两种视图
+// 收藏、帮助 暂无后端逻辑，仅作视觉占位，遵循现有逻辑不接入假功能。
 // 设置已接入：点击打开主题切换弹窗（SettingsDialog）。
 import { useEffect, useState } from "react";
 import { Plus, FileText, Tag, Star, Trash2, Settings, Info, LogOut, Link2, Upload } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTags } from "../hooks/useTags";
 import { useTheme } from "../hooks/useTheme";
+import { useTrashList } from "../hooks/useNotes";
 import ConfirmDialog from "./ConfirmDialog";
 import SettingsDialog from "./SettingsDialog";
 import type { Tag as TagType } from "../types";
 
+export type View = "notes" | "trash";
+
 interface Props {
+  view: View;
+  onViewChange: (v: View) => void;
   selectedTagId: number | null;
   onSelectTag: (id: number | null) => void;
   onCreate: () => void;
@@ -19,13 +25,13 @@ interface Props {
 }
 
 // 导航项的公共类名（激活/非激活在调用处拼接）
-// px-4 让内容更紧凑，避免在 1K 显示器上侧栏显得空旷宽
 const itemBase =
   "flex items-center gap-3 px-4 py-2.5 text-sm cursor-pointer border-r-[3px] border-transparent transition-colors";
 
-export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummarize, onImport }: Props) {
+export default function Sidebar({ view, onViewChange, selectedTagId, onSelectTag, onCreate, onSummarize, onImport }: Props) {
   const { user, logout } = useAuth();
   const { data: tags = [] } = useTags();
+  const { data: trash = [] } = useTrashList();
   const { theme } = useTheme();
   // 仅展示有笔记引用的标签（note_count > 0），空标签不占「标签位」
   const visibleTags = tags.filter((t) => t.note_count > 0);
@@ -42,6 +48,12 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummar
 
   // 用户名首字母作头像（无用户名时回退到 "U"）
   const initial = (user?.username?.[0] ?? "U").toUpperCase();
+
+  // 在「废纸篓」视图下，点击标签不应切换回 notes 视图
+  const handleSelectTag = (id: number | null) => {
+    if (view !== "notes") onViewChange("notes");
+    onSelectTag(id);
+  };
 
   return (
     <aside className="w-[184px] shrink-0 h-full bg-surface-container-low border-r border-outline-variant flex flex-col py-5">
@@ -77,16 +89,19 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummar
       </div>
 
       {/* 导航：标签分组 */}
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto">
         <div className="px-4 mb-2 text-[11px] font-semibold text-outline uppercase tracking-wider">
           标签
         </div>
 
-        {/* 全部笔记：tagId === null 时激活 */}
+        {/* 全部笔记：tagId === null 且 view === "notes" 时激活 */}
         <div
-          onClick={() => onSelectTag(null)}
+          onClick={() => {
+            onViewChange("notes");
+            onSelectTag(null);
+          }}
           className={`${itemBase} ${
-            selectedTagId === null
+            view === "notes" && selectedTagId === null
               ? "bg-surface-raised/60 text-primary border-primary font-medium"
               : "text-on-surface-variant hover:bg-surface-container-highest"
           }`}
@@ -99,9 +114,9 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummar
         {visibleTags.map((t: TagType) => (
           <div
             key={t.id}
-            onClick={() => onSelectTag(selectedTagId === t.id ? null : t.id)}
+            onClick={() => handleSelectTag(selectedTagId === t.id ? null : t.id)}
             className={`${itemBase} ${
-              selectedTagId === t.id
+              view === "notes" && selectedTagId === t.id
                 ? "bg-surface-raised/60 text-primary border-primary font-medium"
                 : "text-on-surface-variant hover:bg-surface-container-highest"
             }`}
@@ -112,15 +127,27 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummar
           </div>
         ))}
 
-        {/* 视觉占位分组：收藏 / 废纸篓（暂无对应数据逻辑） */}
+        {/* 废纸篓：可点击进入废纸篓视图，有数量角标 */}
         <div className="pt-4 space-y-1">
-          <div className={`${itemBase} text-on-surface-variant hover:bg-surface-container-highest`} title="敬请期待">
-            <Star className="w-5 h-5" />
-            <span>收藏</span>
-          </div>
-          <div className={`${itemBase} text-on-surface-variant hover:bg-surface-container-highest`} title="敬请期待">
+          <div
+            onClick={() => onViewChange("trash")}
+            title="查看已删除的笔记"
+            className={`${itemBase} ${
+              view === "trash"
+                ? "bg-surface-raised/60 text-primary border-primary font-medium"
+                : "text-on-surface-variant hover:bg-surface-container-highest"
+            }`}
+          >
             <Trash2 className="w-5 h-5" />
             <span>废纸篓</span>
+            {trash.length > 0 && (
+              <span className="ml-auto text-xs text-outline">{trash.length}</span>
+            )}
+          </div>
+          {/* 收藏：占位 */}
+          <div className={`${itemBase} text-on-surface-variant opacity-50 cursor-not-allowed`} title="敬请期待">
+            <Star className="w-5 h-5" />
+            <span>收藏</span>
           </div>
         </div>
       </nav>
@@ -139,7 +166,7 @@ export default function Sidebar({ selectedTagId, onSelectTag, onCreate, onSummar
             {theme === "dark" ? "暗色" : "亮色"}
           </span>
         </div>
-        <div className={`${itemBase} text-on-surface-variant hover:bg-surface-container-highest`} title="敬请期待">
+        <div className={`${itemBase} text-on-surface-variant opacity-50 cursor-not-allowed`} title="敬请期待">
           <Info className="w-5 h-5" />
           <span>帮助</span>
         </div>

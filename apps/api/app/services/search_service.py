@@ -1,4 +1,4 @@
-# 全文搜索：基于 FTS5(trigram)，按用户隔离
+# 全文搜索：基于 FTS5(trigram)，按用户隔离，排除已删除（废纸篓）笔记
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, selectinload
 from app.models.note import Note
@@ -9,15 +9,22 @@ _TRIGRAM_MIN_LEN = 3
 
 
 def search_notes(db: Session, user_id: int, query: str) -> list[Note]:
-    """在当前用户笔记的标题/正文中做子串匹配，按相关度排序"""
+    """
+    在当前用户「未删除」笔记的标题/正文中做子串匹配，按相关度排序。
+    - 通过 n.is_deleted = 0 过滤废纸篓中的笔记
+    - 排序保持搜索相关度优先，置顶/时间排序由调用方在列表层处理
+      （搜索场景相关度更重要，保留 FTS rank 顺序）
+    """
     if len(query) >= _TRIGRAM_MIN_LEN:
-        # 通过 notes_fts MATCH 做子串匹配（trigram 分词器），JOIN notes 表后过滤用户
+        # 通过 notes_fts MATCH 做子串匹配（trigram 分词器），JOIN notes 表后过滤用户与未删除
         stmt = text(
             """
             SELECT n.id
             FROM notes n
             JOIN notes_fts f ON f.note_id = n.id
-            WHERE n.user_id = :uid AND notes_fts MATCH :q
+            WHERE n.user_id = :uid
+              AND n.is_deleted = 0
+              AND notes_fts MATCH :q
             ORDER BY rank
             """
         )
@@ -30,6 +37,7 @@ def search_notes(db: Session, user_id: int, query: str) -> list[Note]:
             SELECT n.id
             FROM notes n
             WHERE n.user_id = :uid
+              AND n.is_deleted = 0
               AND (n.title LIKE :like OR n.content LIKE :like)
             ORDER BY n.updated_at DESC
             """
@@ -38,13 +46,13 @@ def search_notes(db: Session, user_id: int, query: str) -> list[Note]:
     ids = [r[0] for r in rows]
     if not ids:
         return []
-    # 按 ids 顺序取出完整 ORM 对象（带 tags）
+    # 按 ids 顺序取出完整 ORM 对象（带 tags），并再次过滤已删除（双保险，防止极端并发）
     notes_by_id = {
         n.id: n
         for n in db.scalars(
             select(Note)
-            .where(Note.id.in_(ids))
+            .where(Note.id.in_(ids), Note.is_deleted == False)  # noqa: E712
             .options(selectinload(Note.tags))
         )
     }
-    return [notes_by_id[i] for i in ids]
+    return [notes_by_id[i] for i in ids if i in notes_by_id]

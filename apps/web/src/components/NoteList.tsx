@@ -1,6 +1,7 @@
 // 中栏：搜索框 + 笔记列表
-// 列表项：标题（受保护显示锁标）/ 摘要两行截断 / 日期·标签 / 悬停删除按钮
-import { Search, Trash2, Lock } from "lucide-react";
+// 列表项：置顶标识 / 标题（受保护显示锁标）/ 摘要两行截断 / 日期·标签 / 悬停删除按钮
+// 列表排序由后端控制：置顶优先（is_pinned DESC, pinned_at DESC），其次 updated_at DESC
+import { Search, Trash2, Lock, Pin } from "lucide-react";
 import { useNoteList } from "../hooks/useNotes";
 import type { NoteListItem } from "../types";
 
@@ -63,11 +64,16 @@ export default function NoteList({
               className={`group p-4 cursor-pointer transition-colors ${
                 active
                   ? "bg-primary/5 border-l-4 border-primary"
+                  : n.is_pinned
+                  ? "border-b border-outline-variant/50 hover:bg-surface-container-low bg-primary-soft/30"
                   : "border-b border-outline-variant/50 hover:bg-surface-container-low"
               }`}
             >
               <h3 className="font-semibold text-sm mb-1 truncate flex items-center gap-1">
                 {n.is_protected && <Lock className="w-3.5 h-3.5 text-primary shrink-0" />}
+                {n.is_pinned && (
+                  <Pin className="w-3.5 h-3.5 text-primary shrink-0 fill-primary" />
+                )}
                 <span className="truncate">{n.title}</span>
               </h3>
               <p className="text-xs text-on-surface-variant line-clamp-2 mb-2">{n.snippet}</p>
@@ -78,7 +84,7 @@ export default function NoteList({
                 </span>
                 <button
                   disabled={n.is_protected}
-                  title={n.is_protected ? "受保护，无法删除" : "删除"}
+                  title={n.is_protected ? "受保护，无法删除" : "移至废纸篓"}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete(n.id, n.is_protected);

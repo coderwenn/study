@@ -17,6 +17,9 @@ export interface Note {
   title: string;
   content: string;
   is_protected: boolean;
+  is_deleted: boolean;
+  is_pinned: boolean;
+  pinned_at: string | null;
   created_at: string;
   updated_at: string;
   tags: TagRef[];
@@ -27,6 +30,19 @@ export interface NoteListItem {
   title: string;
   snippet: string;
   is_protected: boolean;
+  is_pinned: boolean;
+  pinned_at: string | null;
+  updated_at: string;
+  tags: TagRef[];
+}
+
+// 废纸篓列表项：含删除时间，不含置顶字段
+export interface TrashListItem {
+  id: number;
+  title: string;
+  snippet: string;
+  is_protected: boolean;
+  deleted_at: string | null;
   updated_at: string;
   tags: TagRef[];
 }

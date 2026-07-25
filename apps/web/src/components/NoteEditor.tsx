@@ -1,15 +1,17 @@
 // 编辑器：标题、保护开关、导出、标签区、Markdown 分栏；输入防抖自动保存
 // 逻辑保持不变：本地状态与服务端解耦，脏标记 + 1.5s 防抖提交
 import { useEffect, useRef, useState } from "react";
-import { Download, Lock, NotebookPen, Send } from "lucide-react";
+import { Download, Lock, NotebookPen, Pin, Send } from "lucide-react";
 import { publishNoteToWiki } from "../api/wiki";
-import { useNote, useUpdateNote } from "../hooks/useNotes";
+import { useNote, useUpdateNote, usePinNote, useUnpinNote } from "../hooks/useNotes";
 import MarkdownSplit from "./MarkdownSplit";
 import TagPicker from "./TagPicker";
 
 export default function NoteEditor({ noteId }: { noteId: number | null }) {
   const { data: note } = useNote(noteId);
   const updateNote = useUpdateNote();
+  const pinNote = usePinNote();
+  const unpinNote = useUnpinNote();
 
   // 本地编辑状态：与服务端数据解耦，便于防抖提交
   const [title, setTitle] = useState("");
@@ -131,9 +133,19 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
     }
   }
 
+  // 切换置顶状态：立即调用对应接口，不走防抖保存（置顶影响列表排序需即时响应）
+  function togglePin() {
+    if (!note) return;
+    if (note.is_pinned) {
+      unpinNote.mutate(note.id);
+    } else {
+      pinNote.mutate(note.id);
+    }
+  }
+
   return (
     <main className="flex-1 min-w-0 h-full bg-surface-raised flex flex-col">
-      {/* 顶栏：标题 + 导出 + 保护开关 */}
+      {/* 顶栏：标题 + 置顶 + 发布 + 导出 + 保护开关 */}
       <header className="px-6 border-b border-outline-variant flex items-center justify-between gap-4 sticky top-0 bg-surface-raised z-10 h-12">
         <input
           type="text"
@@ -143,6 +155,19 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
           className="font-semibold border-none focus:ring-0 focus:outline-none p-0 w-full text-sm text-on-surface placeholder:text-outline-variant bg-transparent"
         />
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={togglePin}
+            disabled={pinNote.isPending || unpinNote.isPending}
+            title={note.is_pinned ? "取消置顶" : "置顶到列表顶部"}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-60 ${
+              note.is_pinned
+                ? "bg-primary-soft text-primary border border-primary/30 hover:bg-primary-soft/70"
+                : "border border-outline-variant text-on-surface hover:bg-surface-container-low"
+            }`}
+          >
+            <Pin className={`w-[18px] h-[18px] ${note.is_pinned ? "fill-primary" : ""}`} />
+            <span>{note.is_pinned ? "已置顶" : "置顶"}</span>
+          </button>
           <button
             onClick={publishToWiki}
             disabled={publishing}
