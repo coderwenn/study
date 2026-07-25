@@ -128,6 +128,22 @@
     --tw-prose-th-borders: rgb(var(--color-outline-variant));
     --tw-prose-td-borders: rgb(var(--color-outline-variant));
   }
+
+  /* 暗黑主题：Markdown 预览正文用纯白，保证最大可读性 */
+  .dark .prose {
+    --tw-prose-body: 255 255 255;       /* #ffffff 正文纯白 */
+    --tw-prose-headings: 255 255 255;   /* #ffffff 标题纯白 */
+    --tw-prose-bold: 255 255 255;       /* #ffffff 加粗纯白 */
+    --tw-prose-lead: 228 226 230;       /* #e4e2e6 引导段稍灰，保留层级 */
+    --tw-prose-quotes: 228 226 230;     /* #e4e2e6 引用稍灰 */
+    --tw-prose-code: 255 255 255;       /* #ffffff 行内代码纯白 */
+    --tw-prose-pre-code: 228 226 230;   /* #e4e2e6 代码块稍灰（与预览底色区分） */
+  }
+
+  /* 暗黑主题：Markdown 源码区文本纯白，与预览区保持一致 */
+  .dark .md-editor-text {
+    color: #ffffff;
+  }
 }
 
 @layer components {

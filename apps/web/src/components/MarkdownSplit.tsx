@@ -58,7 +58,7 @@ export default function MarkdownSplit({ value, onChange, onSave }: Props) {
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="用 Markdown 书写…"
-          className="flex-1 min-w-0 resize-none border-none outline-none p-8 font-mono text-sm leading-7 text-on-surface bg-surface-raised placeholder:text-outline-variant placeholder:italic"
+          className="md-editor-text flex-1 min-w-0 resize-none border-none outline-none p-8 font-mono text-sm leading-7 text-on-surface bg-surface-raised placeholder:text-outline-variant placeholder:italic"
         />
         {/* 预览区：为空时显示占位提示，避免空白 */}
         <div className="w-2/5 shrink-0 min-w-0 overflow-y-auto border-l border-outline-variant/30 bg-surface-container-low/30 p-8">
