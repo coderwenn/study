@@ -31,6 +31,28 @@ services:
       - notes-data:/data
       # Hermes llm-wiki 的来源目录（宿主机 ↔ 容器；见 ADR-001）
       - /home/ubuntu/wiki/entries:/wiki/entries
+    # 健康检查：探测 /api/health，失败则标记 unhealthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # 资源限制：防单服务内存泄漏拖垮宿主机
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    # 日志上限：防 docker 日志写满磁盘
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # 安全加固：禁止提权
+    security_opt:
+      - no-new-privileges:true
 
   open-webui:
     image: ghcr.nju.edu.cn/open-webui/open-webui:main
@@ -46,6 +68,25 @@ services:
       DEFAULT_LOCALE: "zh-CN"
     volumes:
       - open-webui-data:/app/backend/data
+    # 健康检查：探测 open-webui 内置 /health 端点
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
 
   caddy:
     build:
@@ -57,14 +98,36 @@ services:
       - "80:80"
       - "443:443"
       - "443:443/udp"
+    # 等待后端健康后才启动转发，避免启动期间 502
     depends_on:
-      - api
-      - open-webui
+      api:
+        condition: service_healthy
+      open-webui:
+        condition: service_healthy
     # 持久化 Caddy 的证书与 ACME 状态，容器重建也不丢（防止证书再次丢失）
     volumes:
       - caddy_data:/data
       - caddy_config:/config
       - ./deploy/certs:/certs:ro
+    # 健康检查：探测前端首页是否可访问
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   notes-data:

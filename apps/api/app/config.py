@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     summarize_rate_limit: int = 10          # 窗口内最大请求数
     summarize_rate_window_seconds: int = 60
 
+    # —— 鉴权端点限流（per-IP 滑动窗口，防暴力破解）——
+    # login：窗口内同 IP 最大尝试次数
+    auth_login_rate_limit: int = 20
+    auth_login_rate_window_seconds: int = 60
+    # register：窗口内同 IP 最大注册次数（比 login 更严格）
+    auth_register_rate_limit: int = 10
+    auth_register_rate_window_seconds: int = 3600
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

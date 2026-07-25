@@ -35,3 +35,12 @@ def client():
     with TestClient(fastapi_app) as c:
         yield c
     fastapi_app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiters():
+    """每个测试前重置鉴权限流器，避免累积计数导致测试误触发 429"""
+    from app.routers import auth
+    auth._login_limiter.reset()
+    auth._register_limiter.reset()
+    yield

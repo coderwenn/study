@@ -27,3 +27,7 @@ class RateLimiter:
             return False
         dq.append(t)
         return True
+
+    def reset(self) -> None:
+        """清空所有限流计数（测试间重置用）"""
+        self._hits.clear()

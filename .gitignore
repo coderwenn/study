@@ -19,6 +19,9 @@ build/
 # TLS 证书（acme.sh 生成本地文件，不入库）
 deploy/certs/
 
+# SQLite 备份（backup.sh 产出，不入库）
+deploy/backups/
+
 # Editor / OS
 .vscode/
 .idea/

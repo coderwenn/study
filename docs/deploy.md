@@ -102,10 +102,32 @@ mkdir -p deploy/certs
 
 ## 7. 数据备份（SQLite）
 
-数据库在 docker 卷 `notes-data`，文件为 `/data/notes.db`。定期备份：
+数据库在 docker 卷 `notes-data`，文件为 `/data/notes.db`。
+
+### 自动备份（推荐）
+
+使用 `deploy/backup.sh` 脚本，做在线一致性备份（Python `sqlite3.backup()` 正确处理 WAL）+ 完整性校验 + 旧备份自动清理：
 
 ```bash
-# 导出到宿主机当前目录
+# 手动执行一次
+./deploy/backup.sh
+
+# 定时执行（每天凌晨 3 点）
+crontab -e
+# 加入以下行（注意改成实际路径）：
+0 3 * * * cd /path/to/notes-app && ./deploy/backup.sh >> /var/log/notes-backup.log 2>&1
+```
+
+备份文件存放在 `deploy/backups/`（已在 `.gitignore`），默认保留 30 天。可通过环境变量调整：
+
+```bash
+BACKUP_DIR=/data/backups RETAIN_DAYS=60 ./deploy/backup.sh
+```
+
+### 手动备份（旧方式）
+
+```bash
+# 导出到宿主机当前目录（不做一致性处理，仅适合停服后）
 docker compose exec api cat /data/notes.db > notes-backup-$(date +%F).db
 ```
 
@@ -168,15 +190,41 @@ docker compose up -d --build      # 重建镜像并滚动重启
 ## 9. 常用运维命令
 
 ```bash
-docker compose ps                 # 查看服务状态
+docker compose ps                 # 查看服务状态（含健康检查结果）
 docker compose logs -f            # 跟踪所有日志
 docker compose restart api        # 只重启后端
 docker compose down               # 停止（卷数据保留）
 docker compose down -v            # 停止并删除数据卷（⚠️ 清空数据库）
 ```
 
+## 10. 健康检查
+
+三个服务均配置了 Docker healthcheck，可通过 `docker compose ps` 查看健康状态：
+
+| 服务 | 检查方式 | 间隔 | 超时 |
+|------|---------|------|------|
+| api | `GET /api/health` (python urllib) | 30s | 5s |
+| open-webui | `GET /health` (python urllib) | 30s | 5s |
+| caddy | `wget --spider http://localhost:80/` | 30s | 5s |
+
+Caddy 的 `depends_on` 使用 `condition: service_healthy`，确保后端就绪后才开始转发，避免启动期间 502。
+
+## 11. CI/CD（GitHub Actions）
+
+仓库已配置 `.github/workflows/ci.yml`，在 push 到 main 或 PR 时自动执行：
+
+1. **后端测试** — `uv sync` + `pytest`（68 个测试门禁）
+2. **前端测试** — `pnpm install` + `vitest`
+3. **前端构建** — `pnpm build`（确认产物可正常产出 + 上传 artifact）
+
+测试不通过的 PR 无法合并。部署仍需手动触发（`git pull && docker compose up -d --build`），CI 通过后再手动部署。
+
 ## 安全提示
 
 - `.env`（含 SECRET_KEY）已在 `.gitignore`，**不要**提交。
 - SQLite 单文件适合个人量级；若开放多用户或并发增大，建议迁 PostgreSQL（后端改连接串即可）。
+- 鉴权端点已加 per-IP 限流（login 20 次/分钟、register 10 次/小时），超限返回 429。可通过环境变量 `AUTH_LOGIN_RATE_LIMIT` / `AUTH_REGISTER_RATE_LIMIT` 调整。
+- 所有容器已加 `no-new-privileges` 安全选项，禁止提权。
+- 资源限制已配置（api 512M/1CPU、open-webui 2G/2CPU、caddy 256M/0.5CPU），防单服务内存泄漏拖垮宿主机。
+- 日志已设上限（单文件 10MB × 3 份），防止日志写满磁盘。
 - 生产建议给后端容器加非 root 用户、限制卷权限等加固（个人用可后续再做）。

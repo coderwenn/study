@@ -1,0 +1,86 @@
+# CI 流水线：代码 push / PR 时自动跑测试 + 构建前端
+# 通过门禁后才允许合并到 main 与部署
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── 后端测试门禁 ──
+  test-api:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Run pytest
+        run: uv run pytest -v
+
+  # ── 前端测试门禁 ──
+  test-web:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run vitest
+        run: pnpm --filter web test -- --run
+
+  # ── 前端构建门禁（确认产物可正常产出）──
+  build-web:
+    name: Frontend Build
+    needs: [test-web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist/
+          retention-days: 7

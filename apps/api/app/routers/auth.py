@@ -1,17 +1,27 @@
 # 鉴权路由：注册 / 登录 / 刷新 / 当前用户
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.auth import jwt as jwt_utils, security
 from app.auth.deps import get_current_user
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenPair
 from app.schemas.user import UserCreate, UserOut
+from app.services.rate_limiter import RateLimiter
 
 # 所有鉴权端点统一挂在 /api/auth 前缀下
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+# per-IP 限流器（多 worker 下各自计数，近似；个人项目够用）
+_login_limiter = RateLimiter(
+    settings.auth_login_rate_limit, settings.auth_login_rate_window_seconds
+)
+_register_limiter = RateLimiter(
+    settings.auth_register_rate_limit, settings.auth_register_rate_window_seconds
+)
 
 
 def _issue_tokens(user: User) -> TokenPair:
@@ -23,8 +33,11 @@ def _issue_tokens(user: User) -> TokenPair:
 
 
 @router.post("/register", response_model=TokenPair)
-def register(payload: UserCreate, db: Session = Depends(get_db)):
+def register(payload: UserCreate, request: Request, db: Session = Depends(get_db)):
     """注册新用户：用户名唯一，成功后返回令牌对与用户信息"""
+    # per-IP 限流 → 429（防批量注册）
+    if not _register_limiter.allow(request.client.host if request.client else "unknown"):
+        raise HTTPException(status_code=429, detail="注册过于频繁，请稍后再试")
     # 用户名唯一校验
     exists = db.scalar(select(User).where(User.username == payload.username))
     if exists:
@@ -47,8 +60,11 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenPair)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
     """登录校验：用户名存在且密码匹配，成功后返回令牌对"""
+    # per-IP 限流 → 429（防暴力破解）
+    if not _login_limiter.allow(request.client.host if request.client else "unknown"):
+        raise HTTPException(status_code=429, detail="登录尝试过于频繁，请稍后再试")
     user = db.scalar(select(User).where(User.username == payload.username))
     if not user or not security.verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
