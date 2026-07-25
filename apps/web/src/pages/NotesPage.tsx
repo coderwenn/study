@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar";
 import NoteList from "../components/NoteList";
 import NoteEditor from "../components/NoteEditor";
 import SummarizeDialog from "../components/SummarizeDialog";
+import ImportDialog from "../components/ImportDialog";
 import { useCreateNote, useDeleteNote } from "../hooks/useNotes";
 
 export default function NotesPage() {
@@ -11,6 +12,7 @@ export default function NotesPage() {
   const [tagId, setTagId] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [summarizeOpen, setSummarizeOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const createNote = useCreateNote();
   const deleteNote = useDeleteNote();
 
@@ -37,6 +39,7 @@ export default function NotesPage() {
         onSelectTag={setTagId}
         onCreate={handleCreate}
         onSummarize={() => setSummarizeOpen(true)}
+        onImport={() => setImportOpen(true)}
       />
       <NoteList
         selectedNoteId={selectedId}
@@ -50,6 +53,11 @@ export default function NotesPage() {
       <SummarizeDialog
         open={summarizeOpen}
         onClose={() => setSummarizeOpen(false)}
+        onSaved={(id) => setSelectedId(id)}
+      />
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
         onSaved={(id) => setSelectedId(id)}
       />
     </div>

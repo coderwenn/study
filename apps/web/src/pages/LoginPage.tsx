@@ -33,7 +33,7 @@ export default function LoginPage() {
 
   // 输入框公共样式：聚焦时主色边框 + 细 ring
   const inputClass =
-    "w-full px-4 py-3 rounded-lg border border-outline-variant bg-white text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all";
+    "w-full px-4 py-3 rounded-lg border border-outline-variant bg-surface-raised text-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all";
 
   return (
     <div className="min-h-screen bg-surface flex flex-col items-center justify-center px-4 py-8">
@@ -51,7 +51,7 @@ export default function LoginPage() {
 
         {/* 登录卡片：白底 + 圆角 + 柔和投影 + 细边 */}
         <div
-          className="bg-white rounded-xl p-8 md:p-10 border border-outline-variant/60"
+          className="bg-surface-raised rounded-xl p-8 md:p-10 border border-outline-variant/60"
           style={{ boxShadow: "0 12px 40px -12px rgba(0, 0, 0, 0.08)" }}
         >
           <form onSubmit={submit} className="space-y-6">
@@ -105,7 +105,7 @@ export default function LoginPage() {
 
             {/* 错误提示 */}
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+              <div className="text-sm text-error bg-error/10 border border-error/30 rounded-md px-3 py-2">
                 {error}
               </div>
             )}

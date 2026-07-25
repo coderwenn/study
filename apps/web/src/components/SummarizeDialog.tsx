@@ -110,7 +110,7 @@ export default function SummarizeDialog({ open, onClose, onSaved }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl">
+      <div className="bg-surface-raised rounded-lg w-full max-w-2xl max-h-[85vh] flex flex-col shadow-xl">
         {/* 标题栏 */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-outline-variant">
           <div className="flex items-center gap-2 text-on-surface font-semibold">
@@ -193,7 +193,7 @@ export default function SummarizeDialog({ open, onClose, onSaved }: Props) {
             </>
           )}
 
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-error">{error}</p>}
         </div>
 
         {/* 底栏 */}

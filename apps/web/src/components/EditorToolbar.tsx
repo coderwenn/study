@@ -45,7 +45,7 @@ interface Props {
 
 export function EditorToolbar({ onCommand }: Props) {
   return (
-    <div className="flex items-center gap-0.5 px-4 h-10 border-b border-outline-variant bg-white overflow-x-auto sticky top-12 z-10">
+    <div className="flex items-center gap-0.5 px-4 h-10 border-b border-outline-variant bg-surface-raised overflow-x-auto sticky top-12 z-10">
       {commandOrder.map((id, i) =>
         id === null ? (
           <div key={`sep-${i}`} className="h-6 w-px bg-outline-variant mx-1 shrink-0" />

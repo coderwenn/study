@@ -97,9 +97,9 @@ export default function TagPicker({ selected, onChange }: Props) {
             onBlur={() => {
               if (!name.trim()) setAdding(false);
             }}
-            className="px-2 py-1 w-24 text-xs border border-primary rounded-md bg-white text-on-surface focus:outline-none"
+            className="px-2 py-1 w-24 text-xs border border-primary rounded-md bg-surface-raised text-on-surface focus:outline-none"
           />
-          {error && <span className="text-red-500 text-xs">{error}</span>}
+          {error && <span className="text-error text-xs">{error}</span>}
         </span>
       ) : (
         <button

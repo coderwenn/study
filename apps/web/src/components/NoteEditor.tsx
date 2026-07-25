@@ -56,7 +56,7 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
   // 未选中笔记：空状态
   if (!note) {
     return (
-      <main className="flex-1 min-w-0 h-full bg-white flex flex-col items-center justify-center gap-3 text-outline p-8 text-center">
+      <main className="flex-1 min-w-0 h-full bg-surface-raised flex flex-col items-center justify-center gap-3 text-outline p-8 text-center">
         <NotebookPen className="w-14 h-14 text-outline-variant" />
         <p className="text-base font-semibold text-on-surface-variant m-0">选择一条笔记开始编辑</p>
         <p className="text-[13px] m-0">或点击左侧「新建笔记」创建</p>
@@ -132,9 +132,9 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
   }
 
   return (
-    <main className="flex-1 min-w-0 h-full bg-white flex flex-col">
+    <main className="flex-1 min-w-0 h-full bg-surface-raised flex flex-col">
       {/* 顶栏：标题 + 导出 + 保护开关 */}
-      <header className="px-6 border-b border-outline-variant flex items-center justify-between gap-4 sticky top-0 bg-white z-10 h-12">
+      <header className="px-6 border-b border-outline-variant flex items-center justify-between gap-4 sticky top-0 bg-surface-raised z-10 h-12">
         <input
           type="text"
           placeholder="输入标题..."
@@ -154,7 +154,7 @@ export default function NoteEditor({ noteId }: { noteId: number | null }) {
           </button>
           {wikiMsg && (
             <span
-              className={`text-xs ${wikiMsg.kind === "ok" ? "text-primary" : "text-red-600"}`}
+              className={`text-xs ${wikiMsg.kind === "ok" ? "text-primary" : "text-error"}`}
             >
               {wikiMsg.text}
             </span>
