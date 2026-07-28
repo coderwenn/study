@@ -7,6 +7,7 @@ from app.routers import notes as notes_router
 from app.routers import tags as tags_router
 from app.routers import wiki as wiki_router
 from app.routers import summarize as summarize_router
+from app.routers import pdf as pdf_router
 import app.models  # noqa: F401  注册所有模型
 
 
@@ -33,6 +34,9 @@ app.include_router(wiki_router.router)
 
 # 挂载网页总结路由（agent 抓取+总结链接）
 app.include_router(summarize_router.router)
+
+# 挂载 PDF 导入路由（异步转 MD 草稿）
+app.include_router(pdf_router.router)
 
 
 @app.get("/api/health")

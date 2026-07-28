@@ -22,13 +22,14 @@ interface Props {
   onCreate: () => void;
   onSummarize: () => void; // 打开「从链接总结」弹窗
   onImport: () => void;   // 打开「导入 Markdown」弹窗
+  onImportPdf: () => void; // 打开「导入 PDF」弹窗
 }
 
 // 导航项的公共类名（激活/非激活在调用处拼接）
 const itemBase =
   "flex items-center gap-3 px-4 py-2.5 text-sm cursor-pointer border-r-[3px] border-transparent transition-colors";
 
-export default function Sidebar({ view, onViewChange, selectedTagId, onSelectTag, onCreate, onSummarize, onImport }: Props) {
+export default function Sidebar({ view, onViewChange, selectedTagId, onSelectTag, onCreate, onSummarize, onImport, onImportPdf }: Props) {
   const { user, logout } = useAuth();
   const { data: tags = [] } = useTags();
   const { data: trash = [] } = useTrashList();
@@ -85,6 +86,13 @@ export default function Sidebar({ view, onViewChange, selectedTagId, onSelectTag
         >
           <Upload className="w-[18px] h-[18px]" />
           <span>导入 Markdown</span>
+        </button>
+        <button
+          onClick={onImportPdf}
+          className="w-full mt-2 border border-outline-variant hover:bg-surface-container-low text-on-surface font-medium px-4 rounded-md flex items-center justify-center gap-2 transition-colors py-1.5 text-sm"
+        >
+          <FileText className="w-[18px] h-[18px]" />
+          <span>导入 PDF</span>
         </button>
       </div>
 

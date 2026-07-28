@@ -33,6 +33,18 @@ class Settings(BaseSettings):
     summarize_rate_limit: int = 10          # 窗口内最大请求数
     summarize_rate_window_seconds: int = 60
 
+    # —— PDF 导入：PDF→MD→草稿→预览→落库（异步任务，不存原文件）——
+    # 单 PDF 页数上限（超出 422），防 OCR 拖垮线程池
+    pdf_max_pages: int = 30
+    # 上传文件体积上限（字节，默认 20MB）
+    pdf_max_bytes: int = 20_000_000
+    # 单任务墙钟超时（秒，默认 3 分钟），超时标 failed
+    pdf_timeout_seconds: int = 180
+    # OCR 线程池并发上限（进程内）
+    pdf_max_workers: int = 2
+    # 完成后任务结果保留时长（秒，过期自动清理）
+    pdf_job_ttl_seconds: int = 300
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

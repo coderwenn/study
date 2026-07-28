@@ -7,6 +7,7 @@ import NoteEditor from "../components/NoteEditor";
 import TrashView from "../components/TrashView";
 import SummarizeDialog from "../components/SummarizeDialog";
 import ImportDialog from "../components/ImportDialog";
+import PdfImportDialog from "../components/PdfImportDialog";
 import { useCreateNote, useDeleteNote } from "../hooks/useNotes";
 
 export default function NotesPage() {
@@ -16,6 +17,7 @@ export default function NotesPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [summarizeOpen, setSummarizeOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [pdfImportOpen, setPdfImportOpen] = useState(false);
   const createNote = useCreateNote();
   const deleteNote = useDeleteNote();
 
@@ -53,6 +55,7 @@ export default function NotesPage() {
         onCreate={handleCreate}
         onSummarize={() => setSummarizeOpen(true)}
         onImport={() => setImportOpen(true)}
+        onImportPdf={() => setPdfImportOpen(true)}
       />
       {view === "notes" ? (
         <>
@@ -77,6 +80,11 @@ export default function NotesPage() {
       <ImportDialog
         open={importOpen}
         onClose={() => setImportOpen(false)}
+        onSaved={(id) => setSelectedId(id)}
+      />
+      <PdfImportDialog
+        open={pdfImportOpen}
+        onClose={() => setPdfImportOpen(false)}
         onSaved={(id) => setSelectedId(id)}
       />
     </div>
