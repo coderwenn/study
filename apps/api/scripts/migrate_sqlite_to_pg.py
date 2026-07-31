@@ -54,14 +54,17 @@ def parse_args() -> argparse.Namespace:
 def copy_table(src_session: Session, dst_session: Session, model_cls) -> int:
     """
     从源 DB 读出 model_cls 的全部行，写入目标 DB。
-    显式列出每个字段，避免 ORM 自动生成的 id 冲突。
+    提取列数据新建对象，避免 ORM 对象跨 session 冲突。
     返回迁移行数。
     """
     count = 0
     for row in src_session.scalars(select(model_cls)):
-        dst_session.add(row)
+        # 提取已加载的列数据（排除 SQLAlchemy 内部状态）
+        data = {k: v for k, v in row.__dict__.items() if not k.startswith("_sa_")}
+        new_obj = model_cls(**data)
+        dst_session.add(new_obj)
         count += 1
-    dst_session.flush()  # flush 后才能拿到自增 id（note_tags 依赖）
+    dst_session.flush()
     return count
 
 

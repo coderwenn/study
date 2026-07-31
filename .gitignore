@@ -37,3 +37,6 @@ claude.md
 
 # workbuddy
 .workbuddy
+
+# 部署迁移文档（含服务器操作步骤，不入库）
+deploy_pg_migration.md

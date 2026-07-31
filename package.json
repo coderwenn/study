@@ -6,7 +6,8 @@
     "dev": "concurrently -n api,web -c blue,green \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": "cd apps/api && uv run python -m uvicorn app.main:app --reload --port 8000",
     "dev:web": "pnpm --filter web dev",
-    "build": "pnpm --filter web build"
+    "dev:admin": "pnpm --filter admin-web dev",
+    "build": "pnpm --filter web build && pnpm --filter admin-web build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

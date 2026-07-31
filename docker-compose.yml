@@ -45,6 +45,25 @@ services:
       # Hermes llm-wiki 的来源目录（宿主机 ↔ 容器；见 ADR-001）
       - /home/ubuntu/wiki/entries:/wiki/entries
 
+  admin-backend:
+    build:
+      context: ./apps/admin-backend
+    container_name: notes-admin-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # 直连同一个 PostgreSQL
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/notes
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # 后台 JWT 密钥（独立于 FastAPI 的 SECRET_KEY）
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-admin-backend-secret-change-me}
+      # FastAPI 地址（同网络内用服务名 api）
+      ADMIN_FASTAPI_BASE_URL: http://api:8000
+      ADMIN_FASTAPI_ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+
   open-webui:
     image: ghcr.nju.edu.cn/open-webui/open-webui:main
     container_name: open-webui
@@ -72,6 +91,7 @@ services:
       - "443:443/udp"
     depends_on:
       - api
+      - admin-backend
       - open-webui
     # 持久化 Caddy 的证书与 ACME 状态，容器重建也不丢（防止证书再次丢失）
     volumes:

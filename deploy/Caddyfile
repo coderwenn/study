@@ -5,9 +5,22 @@
 coderwenn.cloud, www.coderwenn.cloud {
 	tls /certs/coderwenn.cloud.crt /certs/coderwenn.cloud.key
 
+	# 管理后台 API（/api/admin/* → admin-backend:8081）
+	handle /api/admin/* {
+		reverse_proxy admin-backend:8081
+	}
+	# 笔记应用 API（/api/* → api:8000）
 	handle /api/* {
 		reverse_proxy api:8000
 	}
+	# 管理后台静态文件（/admin/* → /srv/admin）
+	handle /admin/* {
+		uri strip_prefix /admin
+		root * /srv/admin
+		try_files {path} /index.html
+		file_server
+	}
+	# 笔记应用静态文件
 	handle {
 		root * /srv/web
 		try_files {path} /index.html
