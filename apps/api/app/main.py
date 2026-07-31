@@ -8,6 +8,7 @@ from app.routers import tags as tags_router
 from app.routers import wiki as wiki_router
 from app.routers import summarize as summarize_router
 from app.routers import pdf as pdf_router
+from app.routers import admin as admin_router
 import app.models  # noqa: F401  注册所有模型
 
 
@@ -37,6 +38,9 @@ app.include_router(summarize_router.router)
 
 # 挂载 PDF 导入路由（异步转 MD 草稿）
 app.include_router(pdf_router.router)
+
+# 挂载管理后台路由（供 Spring Boot 后台调用，X-Admin-Key 鉴权）
+app.include_router(admin_router.router)
 
 
 @app.get("/api/health")

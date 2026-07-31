@@ -48,10 +48,18 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenPair)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    """登录校验：用户名存在且密码匹配，成功后返回令牌对"""
+    """
+    登录校验：用户名存在且密码匹配，成功后返回令牌对。
+    - 被封禁（is_active=false）的用户返回 403
+    - 已删除（is_deleted=true）的用户返回 401（不暴露存在性）
+    """
     user = db.scalar(select(User).where(User.username == payload.username))
     if not user or not security.verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if user.is_deleted:
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="账号已被封禁")
     return _issue_tokens(user)
 
 

@@ -21,11 +21,9 @@ RUN uv export --frozen --no-dev --no-emit-project --no-hashes -o requirements.tx
 # 拷贝源码
 COPY app ./app
 
-# SQLite 数据文件存放目录（由 docker-compose 挂卷持久化）
-RUN mkdir -p /data
-
-# 运行时由 docker-compose / .env 覆盖 SECRET_KEY 等敏感配置
-ENV DATABASE_URL=sqlite:////data/notes.db
+# 运行时由 docker-compose / .env 覆盖 DATABASE_URL 等配置
+# 默认指向 PostgreSQL（与 docker-compose 的 db 服务配合）
+ENV DATABASE_URL=postgresql://postgres:postgres@db:5432/notes
 
 EXPOSE 8000
 

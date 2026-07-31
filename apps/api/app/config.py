@@ -3,7 +3,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # 数据库连接串：默认本地 SQLite 文件
+    # 数据库连接串：
+    # - 本地开发默认 SQLite（零依赖）
+    # - 生产环境通过 .env / docker-compose 覆盖为 PostgreSQL
     database_url: str = "sqlite:///./notes.db"
     # JWT 签名密钥（生产环境务必通过环境变量覆盖）
     secret_key: str = "dev-secret-change-me"
@@ -11,7 +13,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
-    # —— Wiki 发布：把笔记作为来源写进 Hermes llm-wiki 的 entries/ 目录 ——
+    # —— 管理后台服务间鉴权 ——
+    # Spring Boot 后台调用 /api/admin/* 接口时携带的密钥
+    # 为空则 admin 接口不可用（返回 403）；用 openssl rand -hex 32 生成
+    admin_api_key: str = ""
+
+    # —— Wiki 发布：把笔记作为来源写进 Hermes llm-wiki 的 entrie
+    # s/ 目录 ——
     # 容器内 entries/ 绝对路径；为空则功能关闭（端点返回 503）
     wiki_entries_path: str = ""
     # 允许发布的用户名（owner）；为空则功能关闭

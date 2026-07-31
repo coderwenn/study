@@ -1,18 +1,39 @@
 # 笔记网站部署编排：后端 API + Caddy（静态前端 + /api 反代）
 # 用法见 docs/deploy.md
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: notes-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: notes
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 设置 POSTGRES_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d notes"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   api:
     build:
       context: ./apps/api
     container_name: notes-api
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
-      # SQLite 文件放挂载卷（绝对路径 /data/notes.db）
-      DATABASE_URL: sqlite:////data/notes.db
+      # PostgreSQL 连接串（指向同网络的 db 服务）
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/notes
       # SECRET_KEY 必填：未在 .env 设置时 compose 会直接报错（防用默认弱密钥）
       SECRET_KEY: ${SECRET_KEY:?请在根目录 .env 设置 SECRET_KEY（用 openssl rand -hex 32 生成）}
       ACCESS_TOKEN_EXPIRE_MINUTES: "30"
       REFRESH_TOKEN_EXPIRE_DAYS: "7"
+      # —— 管理后台服务间鉴权密钥（Spring Boot 调 /api/admin/* 时携带）——
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-}
       # —— 发布到 Wiki（可选；不填 WIKI_OWNER 则功能关闭，端点返回 503）——
       WIKI_ENTRIES_PATH: /wiki/entries
       WIKI_OWNER: ${WIKI_OWNER:-}
@@ -67,7 +88,7 @@ services:
       - /home/ubuntu/wiki:/content
 
 volumes:
-  notes-data:
+  pg-data:
   open-webui-data:
   caddy_data:
   caddy_config:

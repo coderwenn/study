@@ -1,3 +1,8 @@
+import os
+
+# 测试环境强制用内存 SQLite，避免模块级 engine 尝试连接 PostgreSQL
+os.environ["DATABASE_URL"] = "sqlite://"
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -10,7 +15,8 @@ import app.models  # noqa: F401  确保模型注册
 
 @pytest.fixture()
 def client():
-    # 内存 SQLite + StaticPool 保持单连接，使 FTS/事务在测试内一致
+    # 内存 SQLite + StaticPool 保持单连接，使事务在测试内一致
+    # 注意：search_service 用 ILIKE，SQLite 的 LIKE 大小写不敏感（ASCII），行为一致
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -18,11 +24,7 @@ def client():
     )
     TestingSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     Base.metadata.create_all(bind=engine)
-    # 建立搜索用的 FTS 表与触发器（与 init_db 保持一致）
-    from app.database import _FTS_SQL
-    with engine.begin() as conn:
-        for stmt in _FTS_SQL:
-            conn.exec_driver_sql(stmt)
+    # 无需建 FTS 虚拟表——search_service 已改为 ILIKE 直接查列
 
     def override_get_db():
         db = TestingSession()
