@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import EditorToolbar from "./EditorToolbar";
 import { commands } from "../editor/markdownCommands";
 import { runEdit } from "../editor/runEdit";
@@ -64,7 +65,7 @@ export default function MarkdownSplit({ value, onChange, onSave }: Props) {
         <div className="w-2/5 shrink-0 min-w-0 overflow-y-auto border-l border-outline-variant/30 bg-surface-container-low/30 p-8">
           {value ? (
             <div className="prose max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{value}</ReactMarkdown>
             </div>
           ) : (
             <p className="text-outline-variant italic text-sm">预览区</p>

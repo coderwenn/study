@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { commands, keymap } from "./markdownCommands";
+import { computeEnterEdit } from "./listContinuation";
 import { runEdit } from "./runEdit";
 import type { Edit, EditorState } from "./types";
 
@@ -46,6 +47,15 @@ export function useEditorShortcuts(opts: ShortcutOptions) {
         const state: EditorState = { value: opts.value, selectionStart: ta.selectionStart, selectionEnd: ta.selectionEnd };
         const cmd = e.shiftKey ? commands["outdent"] : commands["indent"];
         runEdit(ta, cmd(state), { onChange: opts.onChange, restoreSelection: opts.restoreSelection });
+        return;
+      }
+
+      // Enter：续行前缀（列表/引用/任务）+ 单回车即换行（配合 remark-breaks 渲染 <br>）
+      // Shift+Enter 或 Ctrl/Cmd+Enter：不拦截，交浏览器默认（让用户保留「硬新段」的逃生口）
+      if (e.code === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        const state: EditorState = { value: opts.value, selectionStart: ta.selectionStart, selectionEnd: ta.selectionEnd };
+        runEdit(ta, computeEnterEdit(state), { onChange: opts.onChange, restoreSelection: opts.restoreSelection });
         return;
       }
 
